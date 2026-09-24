@@ -18,20 +18,20 @@ const summaryPath = path.join(scratchRoot, 'summary.json');
 
 const combos = [
   { id: '14-webpack', nextVersion: '14.2.35', bundler: 'webpack', buildArgs: ['next', 'build'] },
-  { id: '15-webpack', nextVersion: '15.5.26', bundler: 'webpack', buildArgs: ['next', 'build'] },
+  { id: '15-webpack', nextVersion: '15.5.25', bundler: 'webpack', buildArgs: ['next', 'build'] },
   {
     id: '15-turbopack',
-    nextVersion: '15.5.26',
+    nextVersion: '15.5.25',
     bundler: 'turbopack',
     buildArgs: ['next', 'build', '--turbopack'],
   },
   {
     id: '16-webpack',
-    nextVersion: '16.3.6',
+    nextVersion: '16.3.5',
     bundler: 'webpack',
     buildArgs: ['next', 'build', '--webpack'],
   },
-  { id: '16-turbopack', nextVersion: '16.3.6', bundler: 'turbopack', buildArgs: ['next', 'build'] },
+  { id: '16-turbopack', nextVersion: '16.3.5', bundler: 'turbopack', buildArgs: ['next', 'build'] },
 ];
 
 const apps = ['app-router', 'pages-router', 'mixed'];
@@ -52,8 +52,6 @@ function run(command, args, options = {}) {
       ...process.env,
       CI: '1',
       NEXT_TELEMETRY_DISABLED: '1',
-      npm_config_audit: 'false',
-      npm_config_fund: 'false',
       ...env,
     },
     encoding: 'utf8',
@@ -496,17 +494,11 @@ function installAndBuild(combo, appName) {
   ensureDir(path.dirname(workDir));
   copyDir(sourceDir, workDir);
 
-  const installArgs = [
-    'install',
-    '--no-audit',
-    '--no-fund',
-    `next@${combo.nextVersion}`,
-    ...installPackages,
-  ];
-  run('npm', installArgs, { cwd: workDir });
+  const installArgs = ['add', `next@${combo.nextVersion}`, ...installPackages];
+  run('pnpm', installArgs, { cwd: workDir });
 
-  const nextVersionOutput = run('npx', ['next', '--version'], { cwd: workDir });
-  const buildOutput = run('npx', combo.buildArgs, {
+  const nextVersionOutput = run('pnpm', ['exec', 'next', '--version'], { cwd: workDir });
+  const buildOutput = run('pnpm', ['exec', ...combo.buildArgs], {
     cwd: workDir,
     allowFailure: combo.id === '16-webpack',
   });
@@ -533,7 +525,7 @@ function installAndBuild(combo, appName) {
       };
 
   analysis.nextVersionOutput = nextVersionOutput.output.trim();
-  analysis.buildCommand = `npx ${combo.buildArgs.join(' ')}`;
+  analysis.buildCommand = `pnpm exec ${combo.buildArgs.join(' ')}`;
   analysis.buildExitCode = buildOutput.status;
   analysis.buildOutput = buildOutput.output;
 

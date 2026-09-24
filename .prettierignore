@@ -1,5 +1,6 @@
 dist/
 lib/
+pnpm-lock.yaml
 
 # Real `next build` output committed verbatim as test fixtures; must not be
 # reformatted or its bytes no longer match a real build.
