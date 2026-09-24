@@ -13,9 +13,7 @@ import { readFileSync } from 'node:fs';
 const SIZE_TOLERANCE = 0.05;
 
 function usage() {
-  console.error(
-    'Usage: assert-integration-sizes.mjs <expected-sizes.json> <actual-sizes.json>',
-  );
+  console.error('Usage: assert-integration-sizes.mjs <expected-sizes.json> <actual-sizes.json>');
   process.exit(2);
 }
 
