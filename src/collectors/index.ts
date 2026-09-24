@@ -1,5 +1,6 @@
+import path from 'node:path';
 import { FileSizeCache } from './compression.js';
-import { collectPagesRoutes } from './pages.js';
+import { collectPagesRoutes, collectPagesSharedFiles } from './pages.js';
 import { collectAppRoutes } from './detect.js';
 import { disambiguateAcrossRouters } from './route-path.js';
 import { detectBundler, detectNextVersion } from './environment.js';
@@ -29,8 +30,12 @@ function buildRouterMeasurements(
   filesByRoute: Map<string, string[]>,
   router: RouterName,
   sizeCache: FileSizeCache,
+  /** Explicit shared-file set (Pages: `/_app`); omitted for App Router, which uses the intersection. */
+  explicitSharedFiles?: string[],
 ): { routes: RouteMeasurement[]; sharedBytes: number } {
-  const sharedFiles = intersectionOf(Array.from(filesByRoute.values()));
+  const sharedFiles = explicitSharedFiles
+    ? new Set(explicitSharedFiles)
+    : intersectionOf(Array.from(filesByRoute.values()));
   const sharedBytes = sizeCache.sizeOfSet(sharedFiles);
   const routes = Array.from(filesByRoute, ([route, files]) => {
     const firstLoad = sizeCache.sizeOfSet(files);
@@ -61,12 +66,17 @@ export function collectBundleReport(nextDir: string, options: CollectOptions): B
       pagesFiles,
       'pages',
       sizeCache,
+      collectPagesSharedFiles(nextDir),
     );
     routers.pages = { shared: sharedBytes };
     routes.push(...pagesRoutes);
     for (const files of pagesFiles.values()) for (const file of files) allFiles.add(file);
   }
   if (appFiles) {
+    // App Router `shared` is the intersection across every route in `appFiles`, unlike Pages
+    // (which has an explicit `/_app` chunk list). This only degenerates to `own: 0` for a
+    // single-route app, and every supported combo (14/15/16 webpack and Turbopack) always
+    // renders an implicit `/_not-found` route alongside any real route, per docs/manifests.md.
     const { routes: appRoutes, sharedBytes } = buildRouterMeasurements(appFiles, 'app', sizeCache);
     routers.app = { shared: sharedBytes };
     routes.push(...appRoutes);
@@ -81,7 +91,7 @@ export function collectBundleReport(nextDir: string, options: CollectOptions): B
       collectorVersion: COLLECTOR_VERSION,
       compression: options.compression,
     },
-    nextVersion: detectNextVersion(options.workingDirectory ?? nextDir),
+    nextVersion: detectNextVersion(options.workingDirectory ?? path.dirname(nextDir)),
     bundler: detectBundler(nextDir),
     total: sizeCache.sizeOfSet(allFiles),
     routers,

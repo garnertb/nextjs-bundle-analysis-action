@@ -24,3 +24,14 @@ export function collectPagesRoutes(nextDir: string): Map<string, string[]> | und
   }
   return routes;
 }
+
+/**
+ * Pages Router `shared` is `pages['/_app']` (the framework/main chunks every
+ * page loads), not the intersection of every route's files: with a single
+ * Pages route, that intersection would equal the whole route and report a
+ * misleading `own` of 0.
+ */
+export function collectPagesSharedFiles(nextDir: string): string[] {
+  const manifest = readJsonManifest<BuildManifest>(nextDir, 'build-manifest.json');
+  return manifest?.pages?.['/_app'] ?? [];
+}
