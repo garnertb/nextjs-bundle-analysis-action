@@ -418,23 +418,64 @@ describe('renderReport truncation', () => {
     expect(result.markdown).toContain('| ❌ | `/added-and-over-budget` | Route size |');
   });
 
-  it('shows a below-threshold route as changed and excludes it from the hidden count when it has a finding', () => {
+  it('shows a route as changed when it has a Route increase finding even below the significance threshold', () => {
+    // A low bytes-based warnRouteIncrease override lets a small (100 B) delta still breach the
+    // increase check, while remaining below the 512 B significance threshold used elsewhere.
+    const lowIncreaseThresholdConfig: ThresholdConfig = {
+      ...config,
+      warnRouteIncrease: { kind: 'bytes', bytes: 50 },
+    };
     const headRoutes: RouteMeasurement[] = [
-      route('/small-but-over-budget', 'app', 260_000, 50_000),
+      route('/small-increase', 'app', 100_100, 50_000),
       route('/unchanged', 'app', 100_000, 50_000),
     ];
     const baseRoutes: RouteMeasurement[] = [
-      route('/small-but-over-budget', 'app', 259_900, 50_000),
+      route('/small-increase', 'app', 100_000, 50_000),
       route('/unchanged', 'app', 100_000, 50_000),
     ];
 
     const headReport = report({
-      total: 360_000,
+      total: 200_100,
       routers: { app: { shared: 143_100 } },
       routes: headRoutes,
     });
     const baseReport = report({
-      total: 359_900,
+      total: 200_000,
+      routers: { app: { shared: 143_100 } },
+      routes: baseRoutes,
+    });
+
+    const comparison = compareBundleReports(headReport, baseReport);
+    const findings = evaluateThresholds(toThresholdInput(comparison), lowIncreaseThresholdConfig);
+    const result = renderReport(comparison, findings, meta);
+
+    expect(result.truncated).toBe(false);
+    expect(result.markdown).toContain('#### Changed routes');
+    expect(result.markdown).toContain('| `/small-increase` |');
+    expect(result.markdown).not.toMatch(/route changed by less than .* and are hidden/);
+  });
+
+  it('does not list an unchanged, over-budget route as a changed route', () => {
+    const headRoutes: RouteMeasurement[] = [
+      route('/over', 'app', 300_000, 50_000),
+      route('/unchanged', 'app', 100_000, 50_000),
+    ];
+    const baseRoutes: RouteMeasurement[] = [
+      route('/over', 'app', 300_000, 50_000),
+      route('/unchanged', 'app', 100_000, 50_000),
+    ];
+    for (let i = 0; i < 20; i++) {
+      headRoutes.push(route(`/over-${i}`, 'app', 300_000, 50_000));
+      baseRoutes.push(route(`/over-${i}`, 'app', 300_000, 50_000));
+    }
+
+    const headReport = report({
+      total: 400_000,
+      routers: { app: { shared: 143_100 } },
+      routes: headRoutes,
+    });
+    const baseReport = report({
+      total: 400_000,
       routers: { app: { shared: 143_100 } },
       routes: baseRoutes,
     });
@@ -443,10 +484,10 @@ describe('renderReport truncation', () => {
     const findings = evaluateThresholds(toThresholdInput(comparison), config);
     const result = renderReport(comparison, findings, meta);
 
-    expect(result.truncated).toBe(false);
-    expect(result.markdown).toContain('#### Changed routes');
-    expect(result.markdown).toContain('| `/small-but-over-budget` |');
-    expect(result.markdown).not.toMatch(/route changed by less than .* and are hidden/);
+    expect(result.markdown).not.toContain('#### Changed routes');
+    expect(result.markdown).toContain('no route changed by');
+    expect(result.markdown).toContain('#### Findings');
+    expect(result.markdown).toContain('| `/over` | Route size |');
   });
 
   it('links to the job summary in the truncation notice when one is provided', () => {

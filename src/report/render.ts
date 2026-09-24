@@ -249,8 +249,12 @@ export function renderReport(
     return { markdown: render(withoutAllRoutes), truncated: true };
   }
 
-  const findingLevelByRoute = computeFindingLevelByRoute(findings);
-  const significantCount = computeSignificantRoutes(comparison, findingLevelByRoute, meta).length;
+  const routeIncreaseFindingRoutes = computeRouteIncreaseFindingRoutes(findings);
+  const significantCount = computeSignificantRoutes(
+    comparison,
+    routeIncreaseFindingRoutes,
+    meta,
+  ).length;
   const addedCount = comparison.routes.filter((r) => r.added).length;
   const removedCount = comparison.removed.length;
 
@@ -378,15 +382,26 @@ function computeFindingLevelByRoute(findings: Finding[]): Map<string, FindingLev
 }
 
 /**
+ * Routes carrying a "Route increase" finding — a delta-based check, unlike
+ * "Route size" which is an absolute-size check that can fire on an unchanged
+ * route. Used to widen "significant" without pulling in unchanged routes
+ * that merely breach an absolute budget (those still show in Findings and
+ * All routes, just not as a `+0 B` row in Changed routes).
+ */
+function computeRouteIncreaseFindingRoutes(findings: Finding[]): Set<string> {
+  return new Set(findings.filter((f) => f.check === 'Route increase').map((f) => f.route));
+}
+
+/**
  * Routes shown in the "Changed routes" table: those whose |Δ| clears
- * `significantChangeBytes`, plus any route carrying a finding regardless of
- * its delta (a route-size finding on an unchanged route still needs its
- * Before/After context, and must never be silently hidden — see PR #4
- * review item 3).
+ * `significantChangeBytes`, plus any route carrying a Route increase finding
+ * regardless of its delta size (see PR #4 review item 3). An unchanged route
+ * that only breaches an absolute Route size budget is not "changed" — it
+ * still surfaces via Findings and All routes.
  */
 function computeSignificantRoutes(
   comparison: Comparison,
-  findingLevelByRoute: Map<string, FindingLevel>,
+  routeIncreaseFindingRoutes: Set<string>,
   meta: ReportMeta,
 ): RouteRow[] {
   if (comparison.baselineStatus !== 'found') return [];
@@ -395,7 +410,8 @@ function computeSignificantRoutes(
       (r) =>
         !r.added &&
         r.deltaBytes !== undefined &&
-        (Math.abs(r.deltaBytes) >= meta.significantChangeBytes || findingLevelByRoute.has(r.route)),
+        (Math.abs(r.deltaBytes) >= meta.significantChangeBytes ||
+          routeIncreaseFindingRoutes.has(r.route)),
     )
     .sort((a, b) => Math.abs(b.deltaBytes ?? 0) - Math.abs(a.deltaBytes ?? 0));
 }
@@ -410,7 +426,8 @@ function buildBlocks(
   const failureCount = findings.filter((f) => f.level === 'fail').length;
   const warningCount = findings.filter((f) => f.level === 'warn').length;
   const findingLevelByRoute = computeFindingLevelByRoute(findings);
-  const significant = computeSignificantRoutes(comparison, findingLevelByRoute, meta);
+  const routeIncreaseFindingRoutes = computeRouteIncreaseFindingRoutes(findings);
+  const significant = computeSignificantRoutes(comparison, routeIncreaseFindingRoutes, meta);
 
   const marker = `<!-- nextjs-bundle-analysis:${meta.slug} -->`;
   const title = `### ${statusIcon(findings, comparison.baselineStatus)} Bundle sizes · ${escapeCell(meta.name)}`;
@@ -516,7 +533,7 @@ function buildBlocks(
         r.deltaBytes !== undefined &&
         r.deltaBytes !== 0 &&
         Math.abs(r.deltaBytes) < meta.significantChangeBytes &&
-        !findingLevelByRoute.has(r.route),
+        !routeIncreaseFindingRoutes.has(r.route),
     ).length;
     if (hiddenCount > 0) {
       blocks.push(
