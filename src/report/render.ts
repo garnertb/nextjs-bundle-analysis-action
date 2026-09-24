@@ -226,23 +226,37 @@ function renderAllRoutesDetails(
   return `<details><summary>All routes (${comparison.routes.length})</summary>\n\n${sections.join('\n\n')}\n</details>`;
 }
 
+const FULL_REPORT_OPTIONS: BuildOptions = {
+  includeAllRoutes: true,
+  maxChangedRoutes: undefined,
+  maxAddedRoutes: undefined,
+  maxRemovedRoutes: undefined,
+  maxFindings: undefined,
+};
+
+/**
+ * Renders the complete report with nothing capped, for the job summary
+ * (which has its own, much larger 1 MiB limit, so the PR-comment size
+ * budget doesn't apply).
+ */
+export function renderFullReport(
+  comparison: Comparison,
+  findings: Finding[],
+  meta: ReportMeta,
+): string {
+  return render(buildBlocks(comparison, findings, meta, FULL_REPORT_OPTIONS));
+}
+
 export function renderReport(
   comparison: Comparison,
   findings: Finding[],
   meta: ReportMeta,
 ): RenderResult {
-  const fullOptions: BuildOptions = {
-    includeAllRoutes: true,
-    maxChangedRoutes: undefined,
-    maxAddedRoutes: undefined,
-    maxRemovedRoutes: undefined,
-    maxFindings: undefined,
-  };
-  const full = buildBlocks(comparison, findings, meta, fullOptions);
+  const full = buildBlocks(comparison, findings, meta, FULL_REPORT_OPTIONS);
   if (fits(full)) return { markdown: render(full), truncated: false };
 
   const withoutAllRoutes = appendTruncationNotice(
-    buildBlocks(comparison, findings, meta, { ...fullOptions, includeAllRoutes: false }),
+    buildBlocks(comparison, findings, meta, { ...FULL_REPORT_OPTIONS, includeAllRoutes: false }),
     meta,
   );
   if (fits(withoutAllRoutes)) {
