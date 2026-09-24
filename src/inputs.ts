@@ -43,7 +43,10 @@ function required(raw: RawInputs, key: string, fallback: string): string {
 function boolean(raw: RawInputs, key: string, fallback: boolean): boolean {
   const value = optional(raw, key);
   if (value === undefined) return fallback;
-  return value.trim().toLowerCase() === 'true';
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'true') return true;
+  if (normalized === 'false') return false;
+  throw new Error(`Invalid "${key}" input: "${value}". Expected "true" or "false".`);
 }
 
 function compression(raw: RawInputs): ActionInputs['compression'] {

@@ -36,6 +36,17 @@ describe('parseInputs', () => {
     expect(() => parseInputs({ compression: 'zstd' })).toThrow(/Invalid "compression"/);
   });
 
+  it('rejects a non-boolean value for a boolean input', () => {
+    expect(() => parseInputs({ comment: 'yes' })).toThrow(/Invalid "comment"/);
+    expect(() => parseInputs({ 'upload-artifact': '1' })).toThrow(/Invalid "upload-artifact"/);
+  });
+
+  it('accepts boolean values regardless of case or surrounding whitespace', () => {
+    const inputs = parseInputs({ comment: ' TRUE ', 'job-summary': 'False' });
+    expect(inputs.comment).toBe(true);
+    expect(inputs.jobSummary).toBe(false);
+  });
+
   it('treats an empty-string input the same as an absent one', () => {
     const inputs = parseInputs({ 'base-branch': '' });
     expect(inputs.baseBranch).toBeUndefined();

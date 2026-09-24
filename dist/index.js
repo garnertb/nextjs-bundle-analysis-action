@@ -19432,7 +19432,10 @@ function required(raw, key, fallback) {
 function boolean(raw, key, fallback) {
   const value = optional(raw, key);
   if (value === void 0) return fallback;
-  return value.trim().toLowerCase() === "true";
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "true") return true;
+  if (normalized === "false") return false;
+  throw new Error(`Invalid "${key}" input: "${value}". Expected "true" or "false".`);
 }
 function compression(raw) {
   const value = optional(raw, "compression") ?? "gzip";
