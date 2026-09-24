@@ -28,6 +28,8 @@ export interface ReportMeta {
   actionVersion: string;
   /** Linked in the truncation notice when the report had to be shortened to fit. */
   jobSummaryUrl: string | undefined;
+  /** Repository URL (no trailing slash), used to link the baseline SHA as `<repoUrl>/commit/<sha>`. */
+  repoUrl: string | undefined;
 }
 
 export interface RenderResult {
@@ -46,6 +48,15 @@ function plural(count: number, singular: string): string {
 /** `_total_`/`_shared_ (router)`-style pseudo-routes render as plain text; real routes get an inline code span. */
 function routeCell(route: string): string {
   return route.startsWith('_') ? escapeCell(route) : codeSpan(route);
+}
+
+/** The baseline short SHA as a code span, linked to its commit when a repo URL is available. */
+function baseShaSegment(meta: ReportMeta): string {
+  const sha = meta.baseShortSha;
+  const code = codeSpan(sha ?? '');
+  if (!sha || !meta.repoUrl) return code;
+  const base = escapeCell(meta.repoUrl).replace(/\/+$/, '');
+  return `[${code}](${base}/commit/${encodeURIComponent(sha)})`;
 }
 
 function statusIcon(findings: Finding[], baselineStatus: Comparison['baselineStatus']): string {
@@ -160,15 +171,28 @@ function budgetColumnEnabled(config: ThresholdConfig): boolean {
   return false;
 }
 
-function renderBudgetCell(route: RouteRow, config: ThresholdConfig): string {
+function renderBudgetCell(
+  route: RouteRow,
+  config: ThresholdConfig,
+  hasRouteSizeFinding: boolean,
+): string {
   const override = resolveRouteBudget(route.route, config.budgets);
   const warnBytes = override?.warnRouteSize ?? config.warnRouteSize;
   if (warnBytes === undefined) return '—';
-  const pct = Math.round((route.after / warnBytes) * 100);
-  return pct >= 100 ? `⚠️ ${pct}%` : `${pct}%`;
+  // Floor (not round) so a route just under budget never displays as "100%": the finding
+  // itself, not a recomputed/rounded percentage, is the source of truth for the icon.
+  const pct = Math.floor((route.after / warnBytes) * 100);
+  return hasRouteSizeFinding ? `⚠️ ${pct}%` : `${pct}%`;
 }
 
-function renderAllRoutesDetails(comparison: Comparison, config: ThresholdConfig): string {
+function renderAllRoutesDetails(
+  comparison: Comparison,
+  config: ThresholdConfig,
+  findings: Finding[],
+): string {
+  const routesWithSizeFinding = new Set(
+    findings.filter((f) => f.check === 'Route size').map((f) => f.route),
+  );
   const showBudget = budgetColumnEnabled(config);
   const headerCells = showBudget
     ? '| Route | First load | Own | Budget |'
@@ -186,7 +210,8 @@ function renderAllRoutesDetails(comparison: Comparison, config: ThresholdConfig)
       const shared = comparison.routers.find((r) => r.router === router)?.sharedAfter ?? 0;
       const rows = routes.map((route) => {
         const cells = [routeCell(route.route), formatBytes(route.after), formatBytes(route.own)];
-        if (showBudget) cells.push(renderBudgetCell(route, config));
+        if (showBudget)
+          cells.push(renderBudgetCell(route, config, routesWithSizeFinding.has(route.route)));
         return `| ${cells.join(' | ')} |`;
       });
       return [
@@ -206,59 +231,120 @@ export function renderReport(
   findings: Finding[],
   meta: ReportMeta,
 ): RenderResult {
-  const full = buildBlocks(comparison, findings, meta, {
+  const fullOptions: BuildOptions = {
     includeAllRoutes: true,
     maxChangedRoutes: undefined,
-  });
-  if (joinBlocks(full).length <= MAX_MARKDOWN_LENGTH) {
-    return { markdown: joinBlocks(full), truncated: false };
+    maxAddedRoutes: undefined,
+    maxRemovedRoutes: undefined,
+    maxFindings: undefined,
+  };
+  const full = buildBlocks(comparison, findings, meta, fullOptions);
+  if (fits(full)) return { markdown: render(full), truncated: false };
+
+  const withoutAllRoutes = appendTruncationNotice(
+    buildBlocks(comparison, findings, meta, { ...fullOptions, includeAllRoutes: false }),
+    meta,
+  );
+  if (fits(withoutAllRoutes)) {
+    return { markdown: render(withoutAllRoutes), truncated: true };
   }
 
-  const withoutAllRoutes = buildBlocks(comparison, findings, meta, {
-    includeAllRoutes: false,
-    maxChangedRoutes: undefined,
-  });
-  if (joinBlocks(withoutAllRoutes).length <= MAX_MARKDOWN_LENGTH) {
-    return {
-      markdown: joinBlocks(appendTruncationNotice(withoutAllRoutes, meta)),
-      truncated: true,
-    };
-  }
+  const findingLevelByRoute = computeFindingLevelByRoute(findings);
+  const significantCount = computeSignificantRoutes(comparison, findingLevelByRoute, meta).length;
+  const addedCount = comparison.routes.filter((r) => r.added).length;
+  const removedCount = comparison.removed.length;
 
-  const significantCount = comparison.routes.filter(
-    (r) =>
-      !r.added &&
-      r.deltaBytes !== undefined &&
-      Math.abs(r.deltaBytes) >= meta.significantChangeBytes,
-  ).length;
+  // Truncation proceeds in stages, each holding the later stages' dimensions uncapped: drop the
+  // "All routes" table, then cap "Changed routes" (top-N by |Δ|), then cap Added/Removed, and
+  // only as an absolute last resort cap Findings (failures first, then warnings) — findings are
+  // never dropped merely because their route fell outside a capped table (see PR #4 review). Each
+  // candidate is finalized (truncation notice appended) before its size is checked, so the notice
+  // itself is always accounted for in the budget.
+  const stage1 = capSearch(
+    (cap) =>
+      appendTruncationNotice(
+        buildBlocks(comparison, findings, meta, {
+          includeAllRoutes: false,
+          maxChangedRoutes: cap,
+          maxAddedRoutes: undefined,
+          maxRemovedRoutes: undefined,
+          maxFindings: undefined,
+        }),
+        meta,
+      ),
+    significantCount,
+  );
+  if (stage1.fits) return { markdown: render(stage1.blocks), truncated: true };
 
-  // Length is monotonically non-decreasing in `cap`, so binary search for the largest cap that fits.
+  const stage2 = capSearch(
+    (cap) =>
+      appendTruncationNotice(
+        buildBlocks(comparison, findings, meta, {
+          includeAllRoutes: false,
+          maxChangedRoutes: 0,
+          maxAddedRoutes: cap,
+          maxRemovedRoutes: cap,
+          maxFindings: undefined,
+        }),
+        meta,
+      ),
+    Math.max(addedCount, removedCount),
+  );
+  if (stage2.fits) return { markdown: render(stage2.blocks), truncated: true };
+
+  const stage3 = capSearch(
+    (cap) =>
+      appendTruncationNotice(
+        buildBlocks(comparison, findings, meta, {
+          includeAllRoutes: false,
+          maxChangedRoutes: 0,
+          maxAddedRoutes: 0,
+          maxRemovedRoutes: 0,
+          maxFindings: cap,
+        }),
+        meta,
+      ),
+    findings.length,
+  );
+  // Even a fully-capped report (nothing shown in any table) doesn't fit; return it anyway rather
+  // than emit nothing. This can only happen with pathologically long single field values (e.g. an
+  // enormous route/branch name), which no amount of row-capping can fix.
+  return { markdown: render(stage3.blocks), truncated: true };
+}
+
+function fits(blocks: string[]): boolean {
+  return render(blocks).length <= MAX_MARKDOWN_LENGTH;
+}
+
+/** Joins blocks into the final markdown, always ending in a trailing newline. */
+function render(blocks: string[]): string {
+  const joined = blocks.join('\n\n');
+  return joined.endsWith('\n') ? joined : `${joined}\n`;
+}
+
+/**
+ * Binary searches for the largest `cap` in `[0, upperExclusive)` for which `build(cap)` fits the
+ * size budget; length is monotonically non-decreasing in `cap`. Returns the best (possibly
+ * non-fitting, at cap 0) result found so the caller can fall through to a further capping stage.
+ */
+function capSearch(
+  build: (cap: number) => string[],
+  upperExclusive: number,
+): { blocks: string[]; fits: boolean } {
   let low = 0;
-  let high = Math.max(significantCount - 1, 0);
+  let high = Math.max(upperExclusive - 1, 0);
   let best: string[] | undefined;
   while (low <= high) {
     const mid = Math.floor((low + high) / 2);
-    const candidate = buildBlocks(comparison, findings, meta, {
-      includeAllRoutes: false,
-      maxChangedRoutes: mid,
-    });
-    if (joinBlocks(candidate).length <= MAX_MARKDOWN_LENGTH) {
+    const candidate = build(mid);
+    if (fits(candidate)) {
       best = candidate;
       low = mid + 1;
     } else {
       high = mid - 1;
     }
   }
-
-  // Even a fully-capped (0 changed routes shown) report doesn't fit; return it anyway rather than emit nothing.
-  const fallback =
-    best ??
-    buildBlocks(comparison, findings, meta, { includeAllRoutes: false, maxChangedRoutes: 0 });
-  return { markdown: joinBlocks(appendTruncationNotice(fallback, meta)), truncated: true };
-}
-
-function joinBlocks(blocks: string[]): string {
-  return blocks.join('\n\n');
+  return best ? { blocks: best, fits: true } : { blocks: build(0), fits: false };
 }
 
 function appendTruncationNotice(blocks: string[], meta: ReportMeta): string[] {
@@ -272,6 +358,46 @@ interface BuildOptions {
   includeAllRoutes: boolean;
   /** Caps the "Changed routes" table to the top-N rows by `|Δ|`; `undefined` means unlimited. */
   maxChangedRoutes: number | undefined;
+  /** Caps the Added list to the top-N by size; `undefined` means unlimited. */
+  maxAddedRoutes: number | undefined;
+  /** Caps the Removed list to the top-N by size; `undefined` means unlimited. */
+  maxRemovedRoutes: number | undefined;
+  /** Caps the Findings table to the top-N (failures first, then warnings); `undefined` means unlimited. */
+  maxFindings: number | undefined;
+}
+
+/** The worst finding level per route, used both to widen "significant" and to icon the Changed routes table. */
+function computeFindingLevelByRoute(findings: Finding[]): Map<string, FindingLevel> {
+  const byRoute = new Map<string, FindingLevel>();
+  for (const finding of findings) {
+    const existing = byRoute.get(finding.route);
+    if (!existing || (existing === 'warn' && finding.level === 'fail'))
+      byRoute.set(finding.route, finding.level);
+  }
+  return byRoute;
+}
+
+/**
+ * Routes shown in the "Changed routes" table: those whose |Δ| clears
+ * `significantChangeBytes`, plus any route carrying a finding regardless of
+ * its delta (a route-size finding on an unchanged route still needs its
+ * Before/After context, and must never be silently hidden — see PR #4
+ * review item 3).
+ */
+function computeSignificantRoutes(
+  comparison: Comparison,
+  findingLevelByRoute: Map<string, FindingLevel>,
+  meta: ReportMeta,
+): RouteRow[] {
+  if (comparison.baselineStatus !== 'found') return [];
+  return comparison.routes
+    .filter(
+      (r) =>
+        !r.added &&
+        r.deltaBytes !== undefined &&
+        (Math.abs(r.deltaBytes) >= meta.significantChangeBytes || findingLevelByRoute.has(r.route)),
+    )
+    .sort((a, b) => Math.abs(b.deltaBytes ?? 0) - Math.abs(a.deltaBytes ?? 0));
 }
 
 function buildBlocks(
@@ -283,17 +409,8 @@ function buildBlocks(
   const comparable = comparison.baselineStatus === 'found';
   const failureCount = findings.filter((f) => f.level === 'fail').length;
   const warningCount = findings.filter((f) => f.level === 'warn').length;
-
-  const significant = comparable
-    ? comparison.routes
-        .filter(
-          (r) =>
-            !r.added &&
-            r.deltaBytes !== undefined &&
-            Math.abs(r.deltaBytes) >= meta.significantChangeBytes,
-        )
-        .sort((a, b) => Math.abs(b.deltaBytes ?? 0) - Math.abs(a.deltaBytes ?? 0))
-    : [];
+  const findingLevelByRoute = computeFindingLevelByRoute(findings);
+  const significant = computeSignificantRoutes(comparison, findingLevelByRoute, meta);
 
   const marker = `<!-- nextjs-bundle-analysis:${meta.slug} -->`;
   const title = `### ${statusIcon(findings, comparison.baselineStatus)} Bundle sizes · ${escapeCell(meta.name)}`;
@@ -301,7 +418,7 @@ function buildBlocks(
 
   const totalLine = `**${formatBytes(comparison.totalAfter)}** total client JS (${meta.compression})`;
   if (comparable) {
-    const lineA = `${totalLine} · **${formatSignedBytes(comparison.totalDeltaBytes ?? 0)} (${formatSignedPercent(comparison.totalDeltaPercent ?? 0)})** vs ${codeSpan(meta.baseShortSha ?? '')} on ${codeSpan(meta.baseBranch)}`;
+    const lineA = `${totalLine} · **${formatSignedBytes(comparison.totalDeltaBytes ?? 0)} (${formatSignedPercent(comparison.totalDeltaPercent ?? 0)})** vs ${baseShaSegment(meta)} on ${codeSpan(meta.baseBranch)}`;
 
     const addedRoutes = comparison.routes.filter((r) => r.added);
     const changedSegment =
@@ -316,29 +433,27 @@ function buildBlocks(
     const statusLine =
       comparison.baselineStatus === 'missing'
         ? `No baseline from ${codeSpan(meta.baseBranch)} yet. One is created on the next successful push to ${codeSpan(meta.baseBranch)}. Absolute budgets were still checked.`
-        : `Baseline ${codeSpan(meta.baseShortSha ?? '')} was measured with ${comparison.incompatibility?.baseCompression} / collector v${comparison.incompatibility?.baseCollectorVersion} (now ${comparison.incompatibility?.headCompression} / collector v${comparison.incompatibility?.headCollectorVersion}), so deltas are skipped this run. Absolute budgets were still checked.`;
+        : `Baseline ${baseShaSegment(meta)} was measured with ${comparison.incompatibility?.baseCompression} / collector v${comparison.incompatibility?.baseCollectorVersion} (now ${comparison.incompatibility?.headCompression} / collector v${comparison.incompatibility?.headCollectorVersion}), so deltas are skipped this run. Absolute budgets were still checked.`;
     blocks.push(`${lineA}\n${statusLine}`);
   }
 
   const visibleSignificant =
     options.maxChangedRoutes !== undefined
-      ? significant.slice(0, options.maxChangedRoutes)
+      ? significant.slice(0, Math.max(options.maxChangedRoutes, 0))
       : significant;
 
   if (findings.length > 0) {
-    const visibleRouteSet =
-      options.maxChangedRoutes !== undefined
-        ? new Set(visibleSignificant.map((r) => r.route))
-        : undefined;
-    const findingsForTable = visibleRouteSet
-      ? findings.filter((f) => f.route === '_total_' || visibleRouteSet.has(f.route))
-      : findings;
     const ordered = sortFindingsForDisplay(
-      findingsForTable,
+      findings,
       significant.map((r) => r.route),
     );
-    const omittedFindings = findings.length - findingsForTable.length;
-    blocks.push(renderFindingsTable(ordered));
+    const visibleFindings =
+      options.maxFindings !== undefined
+        ? ordered.slice(0, Math.max(options.maxFindings, 0))
+        : ordered;
+    const omittedFindings = ordered.length - visibleFindings.length;
+    if (visibleFindings.length > 0) blocks.push(renderFindingsTable(visibleFindings));
+    else blocks.push('#### Findings');
     if (omittedFindings > 0)
       blocks.push(
         `<sub>${plural(omittedFindings, 'more finding')} omitted to fit the size limit.</sub>`,
@@ -346,16 +461,9 @@ function buildBlocks(
   }
 
   if (comparable) {
-    const findingByRoute = new Map<string, FindingLevel>();
-    for (const finding of findings) {
-      const existing = findingByRoute.get(finding.route);
-      if (!existing || (existing === 'warn' && finding.level === 'fail'))
-        findingByRoute.set(finding.route, finding.level);
-    }
-
     if (significant.length > 0) {
       const rows = visibleSignificant.map((route) => {
-        const level = findingByRoute.get(route.route);
+        const level = findingLevelByRoute.get(route.route);
         const icon =
           level === 'fail'
             ? '❌'
@@ -397,8 +505,8 @@ function buildBlocks(
       );
     }
 
-    const addedLine = addedRoutesLine(comparison);
-    const removedLine = removedRoutesLine(comparison);
+    const addedLine = addedRoutesLine(comparison, options.maxAddedRoutes);
+    const removedLine = removedRoutesLine(comparison, options.maxRemovedRoutes);
     if (addedLine || removedLine)
       blocks.push([addedLine, removedLine].filter((s): s is string => s !== undefined).join('\n'));
 
@@ -407,7 +515,8 @@ function buildBlocks(
         !r.added &&
         r.deltaBytes !== undefined &&
         r.deltaBytes !== 0 &&
-        Math.abs(r.deltaBytes) < meta.significantChangeBytes,
+        Math.abs(r.deltaBytes) < meta.significantChangeBytes &&
+        !findingLevelByRoute.has(r.route),
     ).length;
     if (hiddenCount > 0) {
       blocks.push(
@@ -416,25 +525,44 @@ function buildBlocks(
     }
   }
 
-  if (options.includeAllRoutes) blocks.push(renderAllRoutesDetails(comparison, meta.thresholds));
+  if (options.includeAllRoutes)
+    blocks.push(renderAllRoutesDetails(comparison, meta.thresholds, findings));
   blocks.push(renderFooter(meta));
 
   return blocks;
 }
 
-function addedRoutesLine(comparison: Comparison): string | undefined {
-  const added = comparison.routes.filter((r) => r.added);
-  if (added.length === 0) return undefined;
-  const items = added.map(
-    (r) => `${routeCell(r.route)} (${escapeCell(r.router)}) ${formatBytes(r.after)}`,
-  );
-  return `**Added:** ${items.join(', ')}`;
+/** Renders an Added/Removed summary line, capped to the top-`cap` items by size, largest first. */
+function renderCappedRoutesLine(
+  label: string,
+  rows: { text: string; bytes: number }[],
+  cap: number | undefined,
+): string | undefined {
+  if (rows.length === 0) return undefined;
+  const sorted = [...rows].sort((a, b) => b.bytes - a.bytes);
+  const visible = cap !== undefined ? sorted.slice(0, Math.max(cap, 0)) : sorted;
+  if (visible.length === 0) {
+    return `**${label}:** ${plural(rows.length, 'route')} omitted to fit the size limit.`;
+  }
+  const omitted = rows.length - visible.length;
+  const suffix = omitted > 0 ? `, and ${omitted} more` : '';
+  return `**${label}:** ${visible.map((r) => r.text).join(', ')}${suffix}`;
 }
 
-function removedRoutesLine(comparison: Comparison): string | undefined {
-  if (comparison.removed.length === 0) return undefined;
-  const items = comparison.removed.map(
-    (r) => `${routeCell(r.route)} (${escapeCell(r.router)}) was ${formatBytes(r.before)}`,
-  );
-  return `**Removed:** ${items.join(', ')}`;
+function addedRoutesLine(comparison: Comparison, cap: number | undefined): string | undefined {
+  const rows = comparison.routes
+    .filter((r) => r.added)
+    .map((r) => ({
+      text: `${routeCell(r.route)} (${escapeCell(r.router)}) ${formatBytes(r.after)}`,
+      bytes: r.after,
+    }));
+  return renderCappedRoutesLine('Added', rows, cap);
+}
+
+function removedRoutesLine(comparison: Comparison, cap: number | undefined): string | undefined {
+  const rows = comparison.removed.map((r) => ({
+    text: `${routeCell(r.route)} (${escapeCell(r.router)}) was ${formatBytes(r.before)}`,
+    bytes: r.before,
+  }));
+  return renderCappedRoutesLine('Removed', rows, cap);
 }

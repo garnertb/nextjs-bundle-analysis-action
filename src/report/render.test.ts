@@ -73,6 +73,7 @@ const meta: ReportMeta = {
   bundler: 'webpack',
   actionVersion: 'v1.2.0',
   jobSummaryUrl: undefined,
+  repoUrl: undefined,
 };
 
 describe('renderReport', () => {
@@ -123,10 +124,10 @@ describe('renderReport', () => {
         '#### Findings',
         '| | Route | Check | Value | Limit |',
         '| :-: | --- | --- | ---: | ---: |',
-        '| ❌ | `/editor` | Route increase | +24.1 kB | fail > 20 kB |',
-        '| ⚠️ | `/editor` | Route size | 312.8 kB | warn > 250 kB |',
-        '| ⚠️ | `/dashboard` | Route increase | +6.2% | warn > 5% |',
-        '| ⚠️ | _total_ | Total increase | +18.3 kB | warn > 10 kB |',
+        '| ❌ | `/editor` | Route increase | +24.1 kB | fail &gt; 20 kB |',
+        '| ⚠️ | `/editor` | Route size | 312.8 kB | warn &gt; 250 kB |',
+        '| ⚠️ | `/dashboard` | Route increase | +6.2% | warn &gt; 5% |',
+        '| ⚠️ | _total_ | Total increase | +18.3 kB | warn &gt; 10 kB |',
         '',
         '#### Changed routes',
         '| Route | Router | Before | After | Δ | Δ% | |',
@@ -254,7 +255,7 @@ describe('renderReport', () => {
         '#### Findings',
         '| | Route | Check | Value | Limit |',
         '| :-: | --- | --- | ---: | ---: |',
-        '| ⚠️ | `/editor` | Route size | 312.8 kB | warn > 250 kB |',
+        '| ⚠️ | `/editor` | Route size | 312.8 kB | warn &gt; 250 kB |',
         '',
         '',
       ].join('\n'),
@@ -327,6 +328,125 @@ describe('renderReport truncation', () => {
     expect(result.markdown).not.toContain('<details>');
     expect(result.markdown).toContain('#### Changed routes');
     expect(result.markdown).toContain('| `/a` |');
+  });
+
+  it('bounds the Added list when thousands of routes are added', () => {
+    const headRoutes: RouteMeasurement[] = [route('/kept', 'app', 100_000, 50_000)];
+    const baseRoutes: RouteMeasurement[] = [route('/kept', 'app', 100_000, 50_000)];
+    for (let i = 0; i < 3001; i++) {
+      headRoutes.push(route(`/added-route-with-a-fairly-long-name-${i}`, 'app', 50_000, 40_000));
+    }
+
+    const headReport = report({
+      total: 300_000_000,
+      routers: { app: { shared: 143_100 } },
+      routes: headRoutes,
+    });
+    const baseReport = report({
+      total: 100_000,
+      routers: { app: { shared: 143_100 } },
+      routes: baseRoutes,
+    });
+
+    const comparison = compareBundleReports(headReport, baseReport);
+    const findings = evaluateThresholds(toThresholdInput(comparison), config);
+    const result = renderReport(comparison, findings, meta);
+
+    expect(result.truncated).toBe(true);
+    expect(result.markdown.length).toBeLessThanOrEqual(60_000);
+    expect(result.markdown).toContain('and');
+    expect(result.markdown).toContain('more');
+  });
+
+  it('bounds the Removed list when thousands of routes are removed', () => {
+    const headRoutes: RouteMeasurement[] = [route('/kept', 'app', 100_000, 50_000)];
+    const baseRoutes: RouteMeasurement[] = [route('/kept', 'app', 100_000, 50_000)];
+    for (let i = 0; i < 3001; i++) {
+      baseRoutes.push(route(`/removed-route-with-a-fairly-long-name-${i}`, 'app', 50_000, 40_000));
+    }
+
+    const headReport = report({
+      total: 100_000,
+      routers: { app: { shared: 143_100 } },
+      routes: headRoutes,
+    });
+    const baseReport = report({
+      total: 300_000_000,
+      routers: { app: { shared: 143_100 } },
+      routes: baseRoutes,
+    });
+
+    const comparison = compareBundleReports(headReport, baseReport);
+    const findings = evaluateThresholds(toThresholdInput(comparison), config);
+    const result = renderReport(comparison, findings, meta);
+
+    expect(result.truncated).toBe(true);
+    expect(result.markdown.length).toBeLessThanOrEqual(60_000);
+    expect(result.markdown).toContain('and');
+    expect(result.markdown).toContain('more');
+  });
+
+  it('preserves a failing added route in Findings even among thousands of changed routes', () => {
+    const headRoutes: RouteMeasurement[] = [];
+    const baseRoutes: RouteMeasurement[] = [];
+    for (let i = 0; i < 3000; i++) {
+      // A constant, finding-free 600 B delta (above the 512 B significance threshold, but well
+      // under every warn/fail budget) — these routes are "changed" but never generate a finding.
+      headRoutes.push(route(`/route-with-a-fairly-long-name-${i}`, 'app', 100_600, 50_000));
+      baseRoutes.push(route(`/route-with-a-fairly-long-name-${i}`, 'app', 100_000, 50_000));
+    }
+    headRoutes.push(route('/added-and-over-budget', 'app', 500_000, 500_000));
+
+    const headReport = report({
+      total: 300_000_000,
+      routers: { app: { shared: 143_100 } },
+      routes: headRoutes,
+    });
+    const baseReport = report({
+      total: 150_000_000,
+      routers: { app: { shared: 143_100 } },
+      routes: baseRoutes,
+    });
+
+    const comparison = compareBundleReports(headReport, baseReport);
+    const findings = evaluateThresholds(toThresholdInput(comparison), config);
+    const result = renderReport(comparison, findings, meta);
+
+    expect(result.truncated).toBe(true);
+    expect(result.markdown.length).toBeLessThanOrEqual(60_000);
+    expect(result.markdown).toContain('#### Findings');
+    expect(result.markdown).toContain('| ❌ | `/added-and-over-budget` | Route size |');
+  });
+
+  it('shows a below-threshold route as changed and excludes it from the hidden count when it has a finding', () => {
+    const headRoutes: RouteMeasurement[] = [
+      route('/small-but-over-budget', 'app', 260_000, 50_000),
+      route('/unchanged', 'app', 100_000, 50_000),
+    ];
+    const baseRoutes: RouteMeasurement[] = [
+      route('/small-but-over-budget', 'app', 259_900, 50_000),
+      route('/unchanged', 'app', 100_000, 50_000),
+    ];
+
+    const headReport = report({
+      total: 360_000,
+      routers: { app: { shared: 143_100 } },
+      routes: headRoutes,
+    });
+    const baseReport = report({
+      total: 359_900,
+      routers: { app: { shared: 143_100 } },
+      routes: baseRoutes,
+    });
+
+    const comparison = compareBundleReports(headReport, baseReport);
+    const findings = evaluateThresholds(toThresholdInput(comparison), config);
+    const result = renderReport(comparison, findings, meta);
+
+    expect(result.truncated).toBe(false);
+    expect(result.markdown).toContain('#### Changed routes');
+    expect(result.markdown).toContain('| `/small-but-over-budget` |');
+    expect(result.markdown).not.toMatch(/route changed by less than .* and are hidden/);
   });
 
   it('links to the job summary in the truncation notice when one is provided', () => {
