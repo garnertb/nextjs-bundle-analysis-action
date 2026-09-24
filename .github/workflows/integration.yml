@@ -67,6 +67,7 @@ jobs:
             fixtures/next/**/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - name: Compute expected sizes from the committed fixture
+        if: matrix.expectUnsupported == false
         run: |
           set -o pipefail
           pnpm cli measure \
