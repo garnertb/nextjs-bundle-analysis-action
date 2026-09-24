@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import zlib from 'node:zlib';
@@ -55,6 +56,10 @@ const installPackages = [
 // dropped from the committed fixture, both to keep it small and because
 // those files bake in machine-specific absolute paths.
 const keepJsonFilenames = new Set(['build-manifest.json', 'app-build-manifest.json']);
+// Webpack's client-reference-manifest.js embeds the absolute build directory
+// as clientModules object keys. Rewritten to this placeholder on copy so the
+// committed fixture doesn't depend on which machine/checkout produced it.
+const fixturePathPlaceholder = '/__fixture__';
 
 function run(command, args, options = {}) {
   const { cwd = repoRoot, env = {} } = options;
@@ -497,33 +502,66 @@ function analyzeNextBuild(nextDir, buildOutput, combo, appName) {
   };
 }
 
+function copyFixtureFile(from, to, workDir) {
+  ensureDir(path.dirname(to));
+  const content = fs.readFileSync(from, 'utf8');
+  fs.writeFileSync(
+    to,
+    content.includes(workDir) ? content.split(workDir).join(fixturePathPlaceholder) : content,
+  );
+}
+
 function copyTrimmedNextDir(nextDir, analysis) {
+  const workDir = path.dirname(nextDir);
   const destinationRoot = path.join(fixturesNextDir, analysis.comboId, analysis.appName, '.next');
   rimraf(destinationRoot);
   ensureDir(destinationRoot);
 
   for (const relativeJson of analysis.keepJsonFiles) {
-    const from = path.join(nextDir, relativeJson);
-    const to = path.join(destinationRoot, relativeJson);
-    ensureDir(path.dirname(to));
-    fs.copyFileSync(from, to);
+    copyFixtureFile(
+      path.join(nextDir, relativeJson),
+      path.join(destinationRoot, relativeJson),
+      workDir,
+    );
   }
 
   for (const relativeManifest of analysis.keepManifestFiles || []) {
-    const from = path.join(nextDir, relativeManifest);
-    const to = path.join(destinationRoot, relativeManifest);
-    ensureDir(path.dirname(to));
-    fs.copyFileSync(from, to);
+    copyFixtureFile(
+      path.join(nextDir, relativeManifest),
+      path.join(destinationRoot, relativeManifest),
+      workDir,
+    );
   }
 
   for (const relativeChunk of analysis.keepChunks) {
-    const from = path.join(nextDir, relativeChunk);
-    const to = path.join(destinationRoot, relativeChunk);
-    ensureDir(path.dirname(to));
-    fs.copyFileSync(from, to);
+    copyFixtureFile(
+      path.join(nextDir, relativeChunk),
+      path.join(destinationRoot, relativeChunk),
+      workDir,
+    );
   }
 
   assertTrimmedFixtureComplete(destinationRoot);
+  assertNoLeakedAbsolutePaths(destinationRoot);
+}
+
+function assertNoLeakedAbsolutePaths(destinationRoot) {
+  const home = os.homedir();
+  const leaked = [];
+  for (const file of walk(destinationRoot)) {
+    let content;
+    try {
+      content = fs.readFileSync(file, 'utf8');
+    } catch {
+      continue;
+    }
+    if (content.includes(home)) leaked.push(path.relative(destinationRoot, file));
+  }
+  if (leaked.length > 0) {
+    throw new Error(
+      `Trimmed fixture at ${destinationRoot} still contains an absolute home-directory path (${home}) in: ${leaked.join(', ')}`,
+    );
+  }
 }
 
 function assertTrimmedFixtureComplete(destinationRoot) {
@@ -562,6 +600,13 @@ function assertTrimmedFixtureComplete(destinationRoot) {
   }
 }
 
+function parseLockedNextVersion(packageJsonPath) {
+  const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+  const raw = pkg.dependencies && pkg.dependencies.next;
+  if (!raw) return null;
+  return raw.replace(/^[^\d]*/, '');
+}
+
 function installAndBuild(combo, appName) {
   const sourceDir = path.join(fixturesAppsDir, appName);
   const workDir = path.join(scratchRoot, combo.id, appName);
@@ -578,6 +623,14 @@ function installAndBuild(combo, appName) {
   const committedLockfile = path.join(lockDir, 'pnpm-lock.yaml');
 
   if (fs.existsSync(committedPackageJson) && fs.existsSync(committedLockfile)) {
+    const lockedNextVersion = parseLockedNextVersion(committedPackageJson);
+    if (lockedNextVersion !== combo.nextVersion) {
+      throw new Error(
+        `${combo.id}/${appName}: combos[] specifies next@${combo.nextVersion} but the committed ` +
+          `lockfile at ${lockDir} pins next@${lockedNextVersion}. Delete package.json and ` +
+          `pnpm-lock.yaml there to re-resolve against the new version.`,
+      );
+    }
     fs.copyFileSync(committedPackageJson, path.join(workDir, 'package.json'));
     fs.copyFileSync(committedLockfile, path.join(workDir, 'pnpm-lock.yaml'));
     run('pnpm', ['install', '--frozen-lockfile'], { cwd: workDir });
