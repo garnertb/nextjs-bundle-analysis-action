@@ -1,0 +1,10 @@
+node_modules/
+lib/
+coverage/
+*.log
+.DS_Store
+
+# Fixture apps build their own .next/node_modules in scratch/CI; keep committed
+# trimmed fixtures under fixtures/next/ but never a live build output.
+fixtures/apps/**/node_modules/
+fixtures/apps/**/.next/

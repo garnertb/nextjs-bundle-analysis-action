@@ -1,0 +1,6 @@
+dist/
+lib/
+
+# Real `next build` output committed verbatim as test fixtures; must not be
+# reformatted or its bytes no longer match a real build.
+fixtures/next/
