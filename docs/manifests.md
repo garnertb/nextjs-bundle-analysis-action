@@ -11,7 +11,7 @@ All installs/builds in this refresh ran inside the repo-relative, gitignored `.f
 - Pages Router first-load JS is always `build-manifest.json.pages['/_app'] ∪ build-manifest.json.pages[route]`. `build-manifest.json.pages[route]` never includes the `/_app` files on its own, but `next build` always counts them.
 - The committed fixtures are trimmed evidence copies. Where a JSON manifest exists, the committed JSON set is now just `build-manifest.json` and `app-build-manifest.json`; the rest of the retained evidence is referenced client JS chunks, `server/app/**/_client-reference-manifest.js`, and the kept `server/app/**/*.html` evidence files for the 16-webpack App Router case. The `<details>` file listings below still show the full pre-trim `.next` output recorded in `.fixture-scratch/summary.json`, not only the committed subset.
 - Relative to the previous committed fixture snapshot on this branch, the trim reduces `fixtures/next/` from 12.84 MiB / 949 files to 10.30 MiB / 434 files; JSON alone drops from 3.15 MiB / 660 files to 52.3 KiB / 91 files.
-- Next's webpack App Router manifests still embed absolute `.fixture-scratch/...` filesystem paths inside `*_client-reference-manifest.js` `clientModules` / `entryCSSFiles` keys. That is intrinsic to webpack's manifest shape, not this project's tooling. Only the `.chunks` array values are used for sizing; the committed `build-manifest.json` / `app-build-manifest.json` files were re-verified clean of `/Users/`, and Turbopack's client-reference manifests use opaque module identifiers instead.
+- Next's webpack App Router manifests embed the absolute build directory as `*_client-reference-manifest.js` `clientModules` / `entryCSSFiles` keys; that's intrinsic to webpack's manifest shape, not this project's tooling. Only the `.chunks` array values are used for sizing, so the fixture script now rewrites that absolute prefix to a stable `/__fixture__` placeholder when copying these files into the committed fixture, and asserts (`assertNoLeakedAbsolutePaths`) that no copied file still contains the build machine's home directory. `build-manifest.json` / `app-build-manifest.json` never contained an absolute path to begin with; Turbopack's client-reference manifests use opaque module identifiers instead of filesystem paths.
 - All 15 combo/app builds exited 0 in this refresh, including `16-webpack`. The Next 16 webpack App Router **UNSUPPORTED** verdict below was re-verified on a clean successful build, not on a swallowed failure.
 
 ## Final support matrix
@@ -961,7 +961,7 @@ The latest rebuild leaves the support verdicts unchanged, and this table still m
 - Route Handler finding: The Route Handler `route_client-reference-manifest.js` is empty (`clientModules: {}`), so handlers still appear to carry no client JS. The unsupported part is page attribution, not handler detection.
 - Why unsupported:
   - `fixtures/next/16-webpack/app-router/.next/server/app/blog/[slug]/page_client-reference-manifest.js` shows the precise leak shape: `app/(marketing)/about/about-client.tsx` is correctly empty there, but `app/_components/home-client.tsx` still carries the root page chunk `static/chunks/app/page-e275a0ad40e87fcb.js` into `/blog/[slug]`.
-  - `fixtures/next/16-webpack/app-router/.next/server/app/(marketing)/about/page_client-reference-manifest.js` shows the mirror image: `app/blog/[slug]/blog-client.tsx` is correctly empty on `/about`, while the same root `app/page` chunk still leaks in through `app/_components/home-client.tsx`. In both files, `entryCSSFiles` includes `<fixture-root>`, `app/layout`, `app/page`, and the route's own page path — the root page entry is present on every page manifest, not just its own.
+  - `fixtures/next/16-webpack/app-router/.next/server/app/(marketing)/about/page_client-reference-manifest.js` shows the mirror image: `app/blog/[slug]/blog-client.tsx` is correctly empty on `/about`, while the same root `app/page` chunk still leaks in through `app/_components/home-client.tsx`. In both files, `entryCSSFiles` includes `/__fixture__/`, `app/layout`, `app/page`, and the route's own page path — the root page entry is present on every page manifest, not just its own.
   - The new prerendered HTML evidence independently shows the manifest is unreliable, not merely noisy: `fixtures/next/16-webpack/app-router/.next/server/app/about.html` loads `/_next/static/chunks/846cdde3-bbc12c05ca7d2ed5.js, /_next/static/chunks/840-af6eaf733920f9a9.js, /_next/static/chunks/main-app-49649dd7c0625d27.js, /_next/static/chunks/app/layout-cd7e5f128b372de4.js, /_next/static/chunks/app/(marketing)/about/page-e76052639c5e42bd.js, /_next/static/chunks/polyfills-42372ed130431b0a.js, /_next/static/chunks/webpack-70c336f9a46f13b1.js`, while `fixtures/next/16-webpack/app-router/.next/server/app/index.html` loads `/_next/static/chunks/846cdde3-bbc12c05ca7d2ed5.js, /_next/static/chunks/840-af6eaf733920f9a9.js, /_next/static/chunks/main-app-49649dd7c0625d27.js, /_next/static/chunks/app/layout-cd7e5f128b372de4.js, /_next/static/chunks/app/page-e275a0ad40e87fcb.js, /_next/static/chunks/polyfills-42372ed130431b0a.js, /_next/static/chunks/webpack-70c336f9a46f13b1.js`. `/about` does load its own `app/(marketing)/about/page-*.js` chunk, but it does **not** load the root page's `app/page-*.js` chunk even though `/about`'s `page_client-reference-manifest.js` claims that root client component has a non-empty `chunks` array.
 
 <details>
@@ -1029,7 +1029,7 @@ The latest rebuild leaves the support verdicts unchanged, and this table still m
     ],
     "app/_components/home-client.tsx": ["974", "static/chunks/app/page-e275a0ad40e87fcb.js"]
   },
-  "entryCSSFiles_keys": ["<fixture-root>", "app/layout", "app/page", "app/blog/[slug]/page"]
+  "entryCSSFiles_keys": ["/__fixture__/", "app/layout", "app/page", "app/blog/[slug]/page"]
 }
 ```
 
@@ -1054,7 +1054,7 @@ The latest rebuild leaves the support verdicts unchanged, and this table still m
     "app/blog/[slug]/blog-client.tsx": [],
     "app/_components/home-client.tsx": ["974", "static/chunks/app/page-e275a0ad40e87fcb.js"]
   },
-  "entryCSSFiles_keys": ["<fixture-root>", "app/layout", "app/page", "app/(marketing)/about/page"]
+  "entryCSSFiles_keys": ["/__fixture__/", "app/layout", "app/page", "app/(marketing)/about/page"]
 }
 ```
 
@@ -1299,7 +1299,7 @@ The latest rebuild leaves the support verdicts unchanged, and this table still m
       "static/chunks/app/products/%5Bslug%5D/page-f04882c2a17d15c5.js"
     ]
   },
-  "entryCSSFiles_keys": ["<fixture-root>", "app/layout", "app/page", "app/products/[slug]/page"]
+  "entryCSSFiles_keys": ["/__fixture__/", "app/layout", "app/page", "app/products/[slug]/page"]
 }
 ```
 
