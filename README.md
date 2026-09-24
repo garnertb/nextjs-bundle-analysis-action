@@ -216,12 +216,14 @@ routes only through Next 15 to avoid this.
 
 ## Fork pull requests
 
-A fork PR's `github-token` can't write comments (and, for the default
-`github.token`, can't read baseline artifacts from the base repository
-either). Both cases downgrade to a warning rather than failing the run: the
-job summary is still written in full, but there's no PR comment. Set
-`comment-author` if you're using a GitHub App token from a workflow that
-does have write access instead of the default token.
+On a `pull_request` from a fork, the default `github.token` is read-only
+against the base repository — it retains read scopes like `actions: read`
+and `contents: read`, it just can't write. Baseline lookup and the resulting
+deltas still work, and absolute budgets are still checked. Only the PR
+comment write fails, downgrading to a warning; the job summary is still
+written in full, with the deltas included. Set `comment-author` if you're
+using a GitHub App token from a workflow that does have write access
+instead of the default token.
 
 ## `build-command` security
 
