@@ -11,9 +11,10 @@ const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, '..');
 const fixturesAppsDir = path.join(repoRoot, 'fixtures', 'apps');
 const fixturesNextDir = path.join(repoRoot, 'fixtures', 'next');
-const scratchRoot =
-  process.env.NBA_FIXTURE_SCRATCH ||
-  path.join(process.env.HOME || repoRoot, '.copilot-nextjs-bundle-analysis-action-scratch');
+// Repo-relative and gitignored so the absolute paths Next.js bakes into
+// manifests (nft traces, client-reference-manifest module keys, etc.) don't
+// depend on the machine's home directory.
+const scratchRoot = process.env.NBA_FIXTURE_SCRATCH || path.join(repoRoot, '.fixture-scratch');
 const summaryPath = path.join(scratchRoot, 'summary.json');
 
 const combos = [
@@ -42,10 +43,21 @@ const installPackages = [
   '@types/node@24.5.2',
   '@types/react@18.3.12',
   '@types/react-dom@18.3.1',
+  // pnpm's strict node_modules doesn't hoist these transitive @types packages
+  // the way npm would; without them Next's build-time typecheck fails with
+  // TS2688 "Cannot find type definition file for 'estree'/'json-schema'".
+  '@types/estree@1.0.9',
+  '@types/json-schema@7.0.15',
 ];
+// Manifests actually consumed by the collector logic (see docs/manifests.md
+// and plan.md's collector design); everything else in a real `.next` build
+// (nft traces, required-server-files.json, images-manifest.json, etc.) is
+// dropped from the committed fixture, both to keep it small and because
+// those files bake in machine-specific absolute paths.
+const keepJsonFilenames = new Set(['build-manifest.json', 'app-build-manifest.json']);
 
 function run(command, args, options = {}) {
-  const { cwd = repoRoot, env = {}, allowFailure = false } = options;
+  const { cwd = repoRoot, env = {} } = options;
   const result = spawnSync(command, args, {
     cwd,
     env: {
@@ -59,7 +71,7 @@ function run(command, args, options = {}) {
   });
 
   const output = `${result.stdout || ''}${result.stderr || ''}`;
-  if (!allowFailure && result.status !== 0) {
+  if (result.status !== 0) {
     const error = new Error(`Command failed: ${command} ${args.join(' ')}`);
     error.output = output;
     throw error;
@@ -127,7 +139,12 @@ function unique(values) {
 }
 
 function gzipSize(file) {
-  return zlib.gzipSync(fs.readFileSync(file)).byteLength;
+  // Match `next build`'s own "First Load JS" column, which compresses at
+  // gzip level 9 (empirically verified: summing each chunk's default-level
+  // (6) gzip size left a consistent, unexplained ~150-300 B delta per route
+  // across every combo; switching to level 9 closes it to single-digit
+  // rounding noise).
+  return zlib.gzipSync(fs.readFileSync(file), { level: 9 }).byteLength;
 }
 
 function normalizeFilePath(value) {
@@ -178,6 +195,10 @@ function parseBuildTable(output) {
 function extractPagesRoutes(buildManifest) {
   const pages = buildManifest?.pages;
   if (!pages || typeof pages !== 'object') return [];
+  // `next build`'s own First Load JS always includes `pages/_app`'s files
+  // (webpack: `pages/_app-*.js`; turbopack: an app chunk plus the
+  // `turbopack-*.js` runtime) even though `_app` itself isn't a route.
+  const appFiles = Array.isArray(pages['/_app']) ? pages['/_app'] : [];
   return Object.entries(pages)
     .filter(
       ([route, files]) => route.startsWith('/') && !route.startsWith('/_') && Array.isArray(files),
@@ -186,7 +207,7 @@ function extractPagesRoutes(buildManifest) {
       router: 'pages',
       route,
       manifestKey: route,
-      files: unique(files),
+      files: unique([...appFiles, ...files]),
       manifestPath: 'build-manifest.json.pages',
     }))
     .sort((left, right) => left.route.localeCompare(right.route));
@@ -236,7 +257,10 @@ function extractClientReferenceJsFiles(manifest) {
   for (const values of Object.values(manifest.entryJSFiles || {})) {
     for (const value of values || []) {
       if (typeof value === 'string' && value.endsWith('.js')) {
-        files.add(value.replace(/^\/_next\//, ''));
+        // Webpack encodes dynamic-segment brackets in these paths
+        // (`%5Bslug%5D`) even though the emitted file on disk uses the
+        // literal `[slug]` directory name.
+        files.add(decodeURIComponent(value.replace(/^\/_next\//, '')));
       }
     }
   }
@@ -244,7 +268,7 @@ function extractClientReferenceJsFiles(manifest) {
   for (const value of Object.values(manifest.clientModules || {})) {
     for (const chunk of value?.chunks || []) {
       if (typeof chunk === 'string' && chunk.endsWith('.js')) {
-        files.add(chunk.replace(/^\/_next\//, ''));
+        files.add(decodeURIComponent(chunk.replace(/^\/_next\//, '')));
       }
     }
   }
@@ -401,7 +425,10 @@ function analyzeNextBuild(nextDir, buildOutput, combo, appName) {
   }
 
   const keepChunks = new Set();
-  for (const route of computedRoutes) {
+  // Keep chunks referenced by every clientReferenceRoutes entry (not just the
+  // ones actually used in computedRoutes) so unsupported combos still ship
+  // the evidence chunks their "why unsupported" analysis cites.
+  for (const route of [...computedRoutes, ...clientReferenceRoutes]) {
     for (const file of route.files) {
       const normalized = normalizeFilePath(file);
       const resolved = path.join(nextDir, normalized);
@@ -409,7 +436,9 @@ function analyzeNextBuild(nextDir, buildOutput, combo, appName) {
     }
   }
 
-  const keepJsonFiles = new Set(allJsonFiles);
+  const keepJsonFiles = new Set(
+    allJsonFiles.filter((relativeJson) => keepJsonFilenames.has(path.basename(relativeJson))),
+  );
   const keepManifestFiles = new Set(
     [...routeEntries, ...clientReferenceRoutes]
       .map((route) => route.manifestPath)
@@ -420,6 +449,14 @@ function analyzeNextBuild(nextDir, buildOutput, combo, appName) {
           fs.existsSync(path.join(nextDir, manifestPath)),
       ),
   );
+  // Keep every prerendered App Router HTML file as independent evidence of
+  // which chunks a route's <script> tags actually reference at render time,
+  // separate from (and sometimes contradicting) what a manifest lists.
+  for (const htmlFile of walk(path.join(nextDir, 'server', 'app'), (file) =>
+    file.endsWith('.html'),
+  )) {
+    keepManifestFiles.add(path.relative(nextDir, htmlFile));
+  }
   const extraManifestJsFiles = new Set();
   for (const relativeJson of allJsonFiles) {
     const manifest = readJsonIfExists(path.join(nextDir, relativeJson));
@@ -485,6 +522,44 @@ function copyTrimmedNextDir(nextDir, analysis) {
     ensureDir(path.dirname(to));
     fs.copyFileSync(from, to);
   }
+
+  assertTrimmedFixtureComplete(destinationRoot);
+}
+
+function assertTrimmedFixtureComplete(destinationRoot) {
+  const missing = [];
+  const checkManifestReferences = (manifest) => {
+    if (!manifest) return;
+    for (const file of collectJsonStringJsFiles(manifest)) {
+      const normalized = normalizeFilePath(file);
+      if (
+        normalized.startsWith('static/') &&
+        !fs.existsSync(path.join(destinationRoot, normalized))
+      ) {
+        missing.push(normalized);
+      }
+    }
+  };
+
+  checkManifestReferences(readJsonIfExists(path.join(destinationRoot, 'build-manifest.json')));
+  checkManifestReferences(readJsonIfExists(path.join(destinationRoot, 'app-build-manifest.json')));
+
+  for (const file of walk(destinationRoot, (candidate) =>
+    candidate.endsWith('_client-reference-manifest.js'),
+  )) {
+    const parsed = parseClientReferenceManifest(file);
+    if (!parsed) continue;
+    for (const jsFile of extractClientReferenceJsFiles(parsed.manifest)) {
+      const normalized = normalizeFilePath(jsFile);
+      if (!fs.existsSync(path.join(destinationRoot, normalized))) missing.push(normalized);
+    }
+  }
+
+  if (missing.length > 0) {
+    throw new Error(
+      `Trimmed fixture at ${destinationRoot} is missing chunks referenced by a retained manifest: ${unique(missing).join(', ')}`,
+    );
+  }
 }
 
 function installAndBuild(combo, appName) {
@@ -494,14 +569,28 @@ function installAndBuild(combo, appName) {
   ensureDir(path.dirname(workDir));
   copyDir(sourceDir, workDir);
 
-  const installArgs = ['add', `next@${combo.nextVersion}`, ...installPackages];
-  run('pnpm', installArgs, { cwd: workDir });
+  // Commit a resolved package.json + pnpm-lock.yaml per combo/app so a
+  // regeneration reuses the exact transitive dependency graph (e.g.
+  // caniuse-lite/browserslist) instead of re-resolving latest-matching
+  // versions, which otherwise changes SWC/webpack output between runs.
+  const lockDir = path.join(fixturesNextDir, combo.id, appName);
+  const committedPackageJson = path.join(lockDir, 'package.json');
+  const committedLockfile = path.join(lockDir, 'pnpm-lock.yaml');
+
+  if (fs.existsSync(committedPackageJson) && fs.existsSync(committedLockfile)) {
+    fs.copyFileSync(committedPackageJson, path.join(workDir, 'package.json'));
+    fs.copyFileSync(committedLockfile, path.join(workDir, 'pnpm-lock.yaml'));
+    run('pnpm', ['install', '--frozen-lockfile'], { cwd: workDir });
+  } else {
+    const installArgs = ['add', `next@${combo.nextVersion}`, ...installPackages];
+    run('pnpm', installArgs, { cwd: workDir });
+    ensureDir(lockDir);
+    fs.copyFileSync(path.join(workDir, 'package.json'), committedPackageJson);
+    fs.copyFileSync(path.join(workDir, 'pnpm-lock.yaml'), committedLockfile);
+  }
 
   const nextVersionOutput = run('pnpm', ['exec', 'next', '--version'], { cwd: workDir });
-  const buildOutput = run('pnpm', ['exec', ...combo.buildArgs], {
-    cwd: workDir,
-    allowFailure: combo.id === '16-webpack',
-  });
+  const buildOutput = run('pnpm', ['exec', ...combo.buildArgs], { cwd: workDir });
 
   const nextDir = path.join(workDir, '.next');
   const analysis = fs.existsSync(nextDir)

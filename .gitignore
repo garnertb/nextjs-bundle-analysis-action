@@ -4,6 +4,10 @@ coverage/
 *.log
 .DS_Store
 
+# Repo-relative scratch dir used by scripts/build-fixtures.mjs; never
+# committed, only fixtures/next/** (the trimmed output) is.
+.fixture-scratch/
+
 # Fixture apps build their own .next/node_modules in scratch/CI; keep committed
 # trimmed fixtures under fixtures/next/ but never a live build output.
 fixtures/apps/**/node_modules/
