@@ -25,6 +25,11 @@
         "dependencies": {
           "@protobuf-ts/runtime-rpc": "^2.9.4"
         }
+      },
+      "debug": {
+        "dependencies": {
+          "supports-color": "^7.2.0"
+        }
       }
     }
   },
