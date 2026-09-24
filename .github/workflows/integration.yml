@@ -105,7 +105,20 @@ jobs:
               echo "::error::${{ matrix.combo }}/${{ matrix.app }} was expected to fail as an unsupported App Router combo (see docs/manifests.md), but it $outcome."
               exit 1
             fi
-            echo "OK: ${{ matrix.combo }}/${{ matrix.app }} failed as documented (unsupported App Router combo)."
+            if [[ ! -f "${{ env.work_dir }}/.next/build-manifest.json" ]]; then
+              echo "::error::${{ matrix.combo }}/${{ matrix.app }} failed, but .next/build-manifest.json is missing -- this looks like an install/build flake, not the documented unsupported-combo failure."
+              exit 1
+            fi
+            if pnpm cli measure --next-dir "${{ env.work_dir }}/.next" --out /tmp/unsupported-check.json 2>/tmp/unsupported-check.err; then
+              echo "::error::${{ matrix.combo }}/${{ matrix.app }} was expected to fail measurement as an unsupported App Router combo, but pnpm cli measure succeeded."
+              exit 1
+            fi
+            if ! grep -q 'App Router bundle measurement is not supported' /tmp/unsupported-check.err; then
+              echo "::error::${{ matrix.combo }}/${{ matrix.app }} failed for an unexpected reason (not the documented unsupported App Router error). Output:"
+              cat /tmp/unsupported-check.err
+              exit 1
+            fi
+            echo "OK: ${{ matrix.combo }}/${{ matrix.app }} built successfully and failed measurement as documented (unsupported App Router combo)."
           else
             if [[ "$outcome" != "success" ]]; then
               echo "::error::${{ matrix.combo }}/${{ matrix.app }} was expected to succeed, but it $outcome."
@@ -122,10 +135,12 @@ jobs:
     # A single stable, always-supported cell that runs on both push (to
     # create the baseline artifact) and pull_request (to look it up), using
     # the default artifact-name/baseline-workflow so the two runs match.
-    # This workflow file's own first-ever run has no baseline yet, so the
-    # pull_request assertion below tolerates `missing` in addition to
-    # `found`; see docs/manifests.md and the PR description for how to
-    # confirm `found` after this workflow has run once on main.
+    # A fork PR's token can't read the base repo's workflow-run artifacts,
+    # so `missing` is tolerated there; a same-repo PR only tolerates
+    # `missing` before this workflow's first successful push run on main
+    # (checked via the GitHub API below), and errors otherwise. A schema/
+    # collector-version bump legitimately produces `incompatible`, which is
+    # accepted with a warning, not an error.
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -164,6 +179,8 @@ jobs:
           job-summary: true
       - name: Assert baseline-status
         if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -o pipefail
           status="${{ steps.analyze.outputs.baseline-status }}"
@@ -176,8 +193,21 @@ jobs:
               fi
               echo "OK: baseline found and delta computed."
               ;;
+            incompatible)
+              echo "::warning::baseline-status=incompatible (expected when this PR changes the sizes-JSON schema or collector version; deltas are skipped, absolute budgets still checked)."
+              ;;
             missing)
-              echo "::warning::baseline-status=missing (expected before the first successful push to main creates a baseline artifact on this workflow)."
+              is_fork="${{ github.event.pull_request.head.repo.full_name != github.repository }}"
+              if [[ "$is_fork" == "true" ]]; then
+                echo "::warning::baseline-status=missing on a fork PR, whose token can't read the base repo's workflow-run artifacts; this is expected."
+                exit 0
+              fi
+              push_runs=$(gh api "repos/${{ github.repository }}/actions/workflows/integration.yml/runs?branch=main&event=push&status=success&per_page=1" --jq '.total_count')
+              if [[ "$push_runs" -gt 0 ]]; then
+                echo "::error::baseline-status=missing, but a successful push run of integration.yml already exists on main -- the baseline should have been found."
+                exit 1
+              fi
+              echo "::warning::baseline-status=missing (expected: no successful push run of integration.yml on main yet)."
               ;;
             *)
               echo "::error::Unexpected baseline-status: $status"
