@@ -9,9 +9,9 @@ import { build } from 'esbuild';
 // starting at the last `node_modules/`, which is stable across install
 // layouts, so the committed output doesn't depend on where packages
 // happen to be installed.
-const modulePathCommentPattern = /^\/\/ (.+\.(?:m|c)?[jt]s)$/;
+const modulePathCommentPattern = /^\/\/ (.+\.(?:m|c)?[jt]s|.+\.json)$/;
 const modulePathKeyPattern =
-  /"([^"]+\/node_modules\/[^"]+\.(?:m|c)?[jt]s)"(\(exports(?:, module)?\))/g;
+  /"([^"]+\/node_modules\/[^"]+\.(?:(?:m|c)?[jt]s|json))"(\(exports\d*(?:, module\d*)?\))/g;
 
 function normalizeModulePath(fullPath) {
   const marker = 'node_modules/';
@@ -46,5 +46,19 @@ const sanitized = output.text
     modulePathKeyPattern,
     (_full, path, suffix) => `"${normalizeModulePath(path)}"${suffix}`,
   );
+
+// A regression here would silently reintroduce a machine-dependent dist/;
+// catch it immediately rather than only when check-dist next runs in CI.
+const home = process.env['HOME'];
+if (
+  sanitized.includes('/Users/') ||
+  sanitized.includes('/home/') ||
+  (home && sanitized.includes(home))
+) {
+  throw new Error(
+    'dist/index.js still contains an absolute filesystem path after sanitization; ' +
+      'the module-path normalization in esbuild.config.mjs needs updating for a new esbuild wrapper shape.',
+  );
+}
 
 writeFileSync(output.path, sanitized);

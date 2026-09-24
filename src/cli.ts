@@ -127,6 +127,7 @@ function runReport(flags: Flags): void {
     actionVersion: optionalString(flags, 'action-version') ?? 'dev',
     jobSummaryUrl: optionalString(flags, 'job-summary-url'),
     repoUrl: optionalString(flags, 'repo-url'),
+    baselineWarning: undefined,
   };
 
   const { markdown } = renderReport(comparison, findings, meta);

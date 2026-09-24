@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import { FileSizeCache } from './compression.js';
 import { collectPagesRoutes, collectPagesSharedFiles } from './pages.js';
@@ -5,6 +6,7 @@ import { collectAppRoutes } from './detect.js';
 import { disambiguateAcrossRouters } from './route-path.js';
 import { detectBundler, detectNextVersion } from './environment.js';
 import { COLLECTOR_VERSION, SCHEMA_VERSION } from './types.js';
+import { NoRoutesFoundError } from './unsupported-error.js';
 import type { BundleReport, CompressionAlgorithm, RouteMeasurement, RouterName } from './types.js';
 
 export interface CollectOptions {
@@ -51,11 +53,22 @@ function buildRouterMeasurements(
  * reliable per-route chunk manifest could be found (see docs/manifests.md).
  */
 export function collectBundleReport(nextDir: string, options: CollectOptions): BundleReport {
+  if (!fs.existsSync(nextDir)) {
+    throw new NoRoutesFoundError(nextDir, 'the directory does not exist.');
+  }
+
   const sizeCache = new FileSizeCache(nextDir, options.compression);
 
   const rawPages = collectPagesRoutes(nextDir);
   const rawApp = collectAppRoutes(nextDir);
   const { pages: pagesFiles, app: appFiles } = disambiguateAcrossRouters(rawPages, rawApp);
+
+  if (!pagesFiles && !appFiles) {
+    throw new NoRoutesFoundError(
+      nextDir,
+      'no build-manifest.json, app-build-manifest.json, or client-reference manifests were found.',
+    );
+  }
 
   const routers: BundleReport['routers'] = {};
   const routes: RouteMeasurement[] = [];
@@ -100,5 +113,5 @@ export function collectBundleReport(nextDir: string, options: CollectOptions): B
 }
 
 export * from './types.js';
-export { UnsupportedAppRouterError } from './unsupported-error.js';
+export { UnsupportedAppRouterError, NoRoutesFoundError } from './unsupported-error.js';
 export { RouteCollisionError } from './route-path.js';

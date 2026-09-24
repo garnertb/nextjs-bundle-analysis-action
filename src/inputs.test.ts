@@ -8,6 +8,7 @@ describe('parseInputs', () => {
     expect(inputs.nextDir).toBe('.next');
     expect(inputs.uploadArtifact).toBe(true);
     expect(inputs.comment).toBe(true);
+    expect(inputs.commentAuthor).toBeUndefined();
     expect(inputs.jobSummary).toBe(true);
     expect(inputs.compression).toBe('gzip');
     expect(inputs.significantChange).toBe('512B');
@@ -50,5 +51,10 @@ describe('parseInputs', () => {
   it('treats an empty-string input the same as an absent one', () => {
     const inputs = parseInputs({ 'base-branch': '' });
     expect(inputs.baseBranch).toBeUndefined();
+  });
+
+  it('passes through comment-author', () => {
+    const inputs = parseInputs({ 'comment-author': 'my-bundle-bot[bot]' });
+    expect(inputs.commentAuthor).toBe('my-bundle-bot[bot]');
   });
 });

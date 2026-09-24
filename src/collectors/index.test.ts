@@ -56,4 +56,18 @@ describe('collectBundleReport', () => {
     const report = collectBundleReport(nextDir, { compression: 'none', workingDirectory: appDir });
     expect(report.nextVersion).toBe('14.2.0');
   });
+
+  it("throws when next-dir doesn't exist, instead of silently reporting zero routes", () => {
+    const nextDir = path.join(dir, '.nxt-typo');
+    expect(() => collectBundleReport(nextDir, { compression: 'none' })).toThrow(/does not exist/);
+  });
+
+  it('throws when next-dir exists but has no recognizable manifests', () => {
+    const nextDir = path.join(dir, '.next');
+    writeFile('.next/BUILD_ID', '123');
+
+    expect(() => collectBundleReport(nextDir, { compression: 'none' })).toThrow(
+      /no build-manifest\.json/,
+    );
+  });
 });

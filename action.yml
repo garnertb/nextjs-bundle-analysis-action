@@ -44,6 +44,13 @@ inputs:
     description: 'Whether to upsert a PR comment with the report.'
     required: false
     default: 'true'
+  comment-author:
+    description: >-
+      Login to trust as the author of a prior comment to update, in addition to
+      github-actions[bot]. Set this when github-token is a custom GitHub App
+      installation token (posted as <app-slug>[bot]), which can't be detected
+      automatically via GET /user.
+    required: false
   job-summary:
     description: 'Whether to write the report to the job summary.'
     required: false

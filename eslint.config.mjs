@@ -34,5 +34,16 @@ export default tseslint.config(
     files: ['*.config.ts', '*.config.mts'],
     ...tseslint.configs.disableTypeChecked,
   },
+  {
+    files: ['**/*.test.ts'],
+    rules: {
+      // Test doubles legitimately implement async interfaces without an `await`,
+      // and mocked/fake objects are inherently loosely typed.
+      '@typescript-eslint/require-await': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/unbound-method': 'off',
+    },
+  },
   eslintConfigPrettier,
 );

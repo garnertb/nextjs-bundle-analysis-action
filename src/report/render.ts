@@ -30,6 +30,8 @@ export interface ReportMeta {
   jobSummaryUrl: string | undefined;
   /** Repository URL (no trailing slash), used to link the baseline SHA as `<repoUrl>/commit/<sha>`. */
   repoUrl: string | undefined;
+  /** Set when the baseline lookup itself failed (e.g. an API error), appended to the "no baseline" note. */
+  baselineWarning: string | undefined;
 }
 
 export interface RenderResult {
@@ -226,23 +228,37 @@ function renderAllRoutesDetails(
   return `<details><summary>All routes (${comparison.routes.length})</summary>\n\n${sections.join('\n\n')}\n</details>`;
 }
 
+const FULL_REPORT_OPTIONS: BuildOptions = {
+  includeAllRoutes: true,
+  maxChangedRoutes: undefined,
+  maxAddedRoutes: undefined,
+  maxRemovedRoutes: undefined,
+  maxFindings: undefined,
+};
+
+/**
+ * Renders the complete report with nothing capped, for the job summary
+ * (which has its own, much larger 1 MiB limit, so the PR-comment size
+ * budget doesn't apply).
+ */
+export function renderFullReport(
+  comparison: Comparison,
+  findings: Finding[],
+  meta: ReportMeta,
+): string {
+  return render(buildBlocks(comparison, findings, meta, FULL_REPORT_OPTIONS));
+}
+
 export function renderReport(
   comparison: Comparison,
   findings: Finding[],
   meta: ReportMeta,
 ): RenderResult {
-  const fullOptions: BuildOptions = {
-    includeAllRoutes: true,
-    maxChangedRoutes: undefined,
-    maxAddedRoutes: undefined,
-    maxRemovedRoutes: undefined,
-    maxFindings: undefined,
-  };
-  const full = buildBlocks(comparison, findings, meta, fullOptions);
+  const full = buildBlocks(comparison, findings, meta, FULL_REPORT_OPTIONS);
   if (fits(full)) return { markdown: render(full), truncated: false };
 
   const withoutAllRoutes = appendTruncationNotice(
-    buildBlocks(comparison, findings, meta, { ...fullOptions, includeAllRoutes: false }),
+    buildBlocks(comparison, findings, meta, { ...FULL_REPORT_OPTIONS, includeAllRoutes: false }),
     meta,
   );
   if (fits(withoutAllRoutes)) {
@@ -354,7 +370,7 @@ function capSearch(
 function appendTruncationNotice(blocks: string[], meta: ReportMeta): string[] {
   const link = meta.jobSummaryUrl
     ? ` See the [job summary](${meta.jobSummaryUrl}) for full details.`
-    : ' See the job summary for full details.';
+    : ' Full details were omitted from this comment; enable `job-summary` or download the uploaded sizes artifact for the complete report.';
   return [...blocks, `<sub>Report truncated to fit the comment size limit.${link}</sub>`];
 }
 
@@ -449,7 +465,7 @@ function buildBlocks(
     const lineA = `${totalLine} · ${comparison.routes.length} routes · ${findingCountsPhrase(failureCount, warningCount)}`;
     const statusLine =
       comparison.baselineStatus === 'missing'
-        ? `No baseline from ${codeSpan(meta.baseBranch)} yet. One is created on the next successful push to ${codeSpan(meta.baseBranch)}. Absolute budgets were still checked.`
+        ? `No baseline from ${codeSpan(meta.baseBranch)} yet. One is created on the next successful push to ${codeSpan(meta.baseBranch)}. Absolute budgets were still checked.${meta.baselineWarning ? ` (${escapeCell(meta.baselineWarning)})` : ''}`
         : `Baseline ${baseShaSegment(meta)} was measured with ${comparison.incompatibility?.baseCompression} / collector v${comparison.incompatibility?.baseCollectorVersion} (now ${comparison.incompatibility?.headCompression} / collector v${comparison.incompatibility?.headCollectorVersion}), so deltas are skipped this run. Absolute budgets were still checked.`;
     blocks.push(`${lineA}\n${statusLine}`);
   }
