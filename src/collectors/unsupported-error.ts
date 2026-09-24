@@ -10,3 +10,20 @@ export class UnsupportedAppRouterError extends Error {
     this.name = 'UnsupportedAppRouterError';
   }
 }
+
+/**
+ * Thrown when `nextDir` doesn't exist, or exists but yields zero measured
+ * routes (e.g. a typo'd `next-dir`, or a build that never ran). A silent
+ * empty report would pass every threshold and get uploaded as the next
+ * baseline, masking the real problem.
+ */
+export class NoRoutesFoundError extends Error {
+  constructor(nextDir: string, reason: string) {
+    super(
+      `No routes were found in "${nextDir}": ${reason} Check that next-dir points at a built ` +
+        "Next.js app's .next directory (the build must have already run), and see " +
+        'docs/manifests.md if this combination might be unsupported.',
+    );
+    this.name = 'NoRoutesFoundError';
+  }
+}
