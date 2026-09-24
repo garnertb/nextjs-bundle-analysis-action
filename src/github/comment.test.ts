@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { resolveTrustedCommentAuthor, upsertComment } from './comment.js';
+import { resolveTrustedCommentAuthors, upsertComment } from './comment.js';
 import type { CommentSummary, GithubApi } from './types.js';
 
 const MARKER = '<!-- nextjs-bundle-analysis:web -->';
@@ -25,7 +25,7 @@ const baseOptions = {
   issueNumber: 1,
   marker: MARKER,
   body: `${MARKER}\nreport`,
-  trustedLogin: 'github-actions[bot]',
+  trustedLogins: ['github-actions[bot]'],
 };
 
 describe('upsertComment', () => {
@@ -63,6 +63,24 @@ describe('upsertComment', () => {
     expect(result).toEqual({ status: 'created' });
   });
 
+  it('matches any configured trusted login, e.g. a comment-author app slug', async () => {
+    const api = fakeApi([{ id: 1, body: `${MARKER}\nold`, login: 'my-bundle-bot[bot]' }]);
+    const result = await upsertComment({
+      ...baseOptions,
+      trustedLogins: ['github-actions[bot]', 'my-bundle-bot[bot]'],
+      api,
+    });
+    expect(result).toEqual({ status: 'updated' });
+  });
+
+  it('does not treat an unlisted bot login as trusted, even though it is a bot', async () => {
+    // Regression test: matching must be an exact-login allowlist, never "any
+    // Bot-type user", or another installed GitHub App could spoof a match.
+    const api = fakeApi([{ id: 1, body: `${MARKER}\nspoofed`, login: 'some-other-app[bot]' }]);
+    const result = await upsertComment({ ...baseOptions, api });
+    expect(result).toEqual({ status: 'created' });
+  });
+
   it('downgrades a 403 to a skipped result', async () => {
     const api = fakeApi([]);
     api.createIssueComment.mockRejectedValueOnce(
@@ -81,22 +99,36 @@ describe('upsertComment', () => {
     expect(result.status).toBe('skipped');
   });
 
-  it('rethrows other errors', async () => {
+  it('downgrades any other error to a skipped result too, so a comment failure never aborts the run', async () => {
     const api = fakeApi([]);
     api.createIssueComment.mockRejectedValueOnce(Object.assign(new Error('nope'), { status: 500 }));
-    await expect(upsertComment({ ...baseOptions, api })).rejects.toThrow('nope');
+    const result = await upsertComment({ ...baseOptions, api });
+    expect(result.status).toBe('skipped');
+    expect((result as { reason: string }).reason).toContain('nope');
   });
 });
 
-describe('resolveTrustedCommentAuthor', () => {
-  it('falls back to github-actions[bot] when GET /user is unavailable', async () => {
+describe('resolveTrustedCommentAuthors', () => {
+  it('falls back to github-actions[bot] when GET /user is unavailable and no comment-author is set', async () => {
     const api = fakeApi([]);
-    await expect(resolveTrustedCommentAuthor(api)).resolves.toBe('github-actions[bot]');
+    await expect(resolveTrustedCommentAuthors(api, undefined)).resolves.toEqual([
+      'github-actions[bot]',
+    ]);
   });
 
-  it('uses the authenticated login when available', async () => {
+  it('trusts github-actions[bot] plus the configured comment-author when GET /user is unavailable', async () => {
+    const api = fakeApi([]);
+    await expect(resolveTrustedCommentAuthors(api, 'my-bundle-bot[bot]')).resolves.toEqual([
+      'github-actions[bot]',
+      'my-bundle-bot[bot]',
+    ]);
+  });
+
+  it('uses only the authenticated login when GET /user succeeds', async () => {
     const api = fakeApi([]);
     api.getAuthenticatedLogin = async () => 'my-pat-user';
-    await expect(resolveTrustedCommentAuthor(api)).resolves.toBe('my-pat-user');
+    await expect(resolveTrustedCommentAuthors(api, 'my-bundle-bot[bot]')).resolves.toEqual([
+      'my-pat-user',
+    ]);
   });
 });

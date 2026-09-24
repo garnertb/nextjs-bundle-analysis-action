@@ -15,6 +15,7 @@ export interface ActionInputs {
   uploadArtifact: boolean;
   githubToken: string;
   comment: boolean;
+  commentAuthor: string | undefined;
   jobSummary: boolean;
   compression: 'gzip' | 'brotli' | 'none';
   significantChange: string;
@@ -67,6 +68,7 @@ export function parseInputs(raw: RawInputs): ActionInputs {
     uploadArtifact: boolean(raw, 'upload-artifact', true),
     githubToken: required(raw, 'github-token', ''),
     comment: boolean(raw, 'comment', true),
+    commentAuthor: optional(raw, 'comment-author'),
     jobSummary: boolean(raw, 'job-summary', true),
     compression: compression(raw),
     significantChange: required(raw, 'significant-change', '512B'),

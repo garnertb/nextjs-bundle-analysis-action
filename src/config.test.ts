@@ -17,6 +17,7 @@ const baseInputs: ActionInputs = {
   uploadArtifact: true,
   githubToken: 'token',
   comment: true,
+  commentAuthor: undefined,
   jobSummary: true,
   compression: 'gzip',
   significantChange: '512B',
