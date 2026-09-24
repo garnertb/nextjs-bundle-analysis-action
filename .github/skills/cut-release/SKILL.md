@@ -26,9 +26,18 @@ day-to-day this is "merge the release PR", but verify it first.
    have already caught this), then force-moves `v<major>` and
    `v<major>.<minor>` to the release commit.
 
-3. **Verify:** the GitHub Release exists at the new tag, and
-   `git ls-remote --tags origin | grep -E 'refs/tags/v[0-9]+(\.[0-9]+)?$'`
-   shows `v<major>` and `v<major>.<minor>` pointing at the new commit.
+3. **Verify:** the GitHub Release exists at the new tag. `v<major>` and
+   `v<major>.<minor>` are annotated tags (from `git tag -fa`), so
+   `git ls-remote --tags` shows a tag-object SHA, not the commit SHA it
+   points at. Confirm the commit directly instead:
+
+   ```
+   git fetch --tags --force
+   git rev-parse v<major>^{commit}
+   git rev-parse v<major>.<minor>^{commit}
+   ```
+
+   Both should print the new release commit's SHA.
 
 4. **Rollback:** if a release is bad, don't delete the GitHub Release/tag.
    Re-point the floating tag(s) at the previous good release commit:
