@@ -18,7 +18,7 @@ jobs:
       minor: ${{ steps.release.outputs.minor }}
     steps:
       - id: release
-        # v4 (https://github.com/googleapis/release-please-action/releases/tag/v4.3.1)
+        # v4.4.1 (https://github.com/googleapis/release-please-action/releases/tag/v4.4.1)
         uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
