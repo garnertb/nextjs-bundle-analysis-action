@@ -1,0 +1,13 @@
+{
+  "pages": {
+    "/(marketing)/about/page": [
+      "static/chunks/51a33b9b01f841e6.js",
+      "static/chunks/0e0c64984e756cdd.js",
+      "static/chunks/7c66f53201d75c03.js",
+      "static/chunks/bd8e7c33d2e5cc46.js",
+      "static/chunks/c16f52ae700b9b0c.js",
+      "static/chunks/c4ad13ce314e58d1.js",
+      "static/chunks/turbopack-efa63d5110fe0380.js"
+    ]
+  }
+}

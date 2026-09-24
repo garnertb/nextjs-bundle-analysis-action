@@ -1,0 +1,44 @@
+{
+  "name": "nextjs-bundle-analysis-action",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Reusable GitHub Action for Next.js per-route bundle size analysis (App + Pages Router, webpack + Turbopack) with thresholds and PR reports",
+  "type": "module",
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit",
+    "fixtures": "node scripts/build-fixtures.mjs"
+  },
+  "packageManager": "pnpm@10.34.5+sha512.a4ee05f2f73658255bd6a89859c065a45c28a57daefae2c893a168ee2b73168c37b91e83e57ea67654ad03f03031746430e8bce38e362e042605fb8abc80192e",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "@actions/artifact": "^6.2.1",
+    "@actions/core": "^3.0.1",
+    "@actions/exec": "^3.0.0",
+    "@actions/github": "^9.1.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.38.0",
+    "@types/node": "^24.9.2",
+    "esbuild": "^0.27.0",
+    "eslint": "^9.38.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.12.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.2",
+    "vitest": "^3.2.4"
+  }
+}

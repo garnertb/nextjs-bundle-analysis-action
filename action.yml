@@ -1,0 +1,107 @@
+name: 'Next.js Bundle Analysis'
+description: >-
+  Measures per-route client JS bundle size for Next.js (App Router and Pages
+  Router, webpack and Turbopack), compares it against a baseline from your
+  base branch, evaluates size budgets, and posts a PR report.
+author: 'garnertb'
+branding:
+  icon: 'bar-chart-2'
+  color: 'blue'
+
+inputs:
+  working-directory:
+    description: 'Directory containing the Next.js app.'
+    required: false
+    default: '.'
+  next-dir:
+    description: 'Build output directory, relative to working-directory (honors a custom distDir).'
+    required: false
+    default: '.next'
+  build-command:
+    description: 'Optional command to build the app before measuring, run in working-directory with a scrubbed environment.'
+    required: false
+  name:
+    description: 'Display label for this app. Defaults to the package.json name. Slugged for the artifact name, comment marker, and file paths.'
+    required: false
+  base-branch:
+    description: 'Branch to compare against. Defaults to the repository default branch.'
+    required: false
+  baseline-workflow:
+    description: 'Workflow file to search for the baseline artifact. Defaults to the current workflow file.'
+    required: false
+  artifact-name:
+    description: 'Name of the sizes artifact. Defaults to next-bundle-sizes-<slug>.'
+    required: false
+  upload-artifact:
+    description: 'Whether to upload the sizes JSON as a workflow artifact.'
+    required: false
+    default: 'true'
+  github-token:
+    description: 'Token used to download baseline artifacts and upsert the PR comment.'
+    required: false
+    default: ${{ github.token }}
+  comment:
+    description: 'Whether to upsert a PR comment with the report.'
+    required: false
+    default: 'true'
+  job-summary:
+    description: 'Whether to write the report to the job summary.'
+    required: false
+    default: 'true'
+  compression:
+    description: 'Compression used to measure chunk sizes: gzip, brotli, or none.'
+    required: false
+    default: 'gzip'
+  significant-change:
+    description: 'Minimum delta (e.g. 512B) for a route to be listed as changed.'
+    required: false
+    default: '512B'
+  warn-route-size:
+    description: "Warn if a route's absolute first-load size exceeds this budget (e.g. 250kB)."
+    required: false
+  fail-route-size:
+    description: "Fail if a route's absolute first-load size exceeds this budget (e.g. 400kB)."
+    required: false
+  warn-route-increase:
+    description: "Warn if a route's first-load size increases by more than this amount or percent (e.g. 20kB or 5%)."
+    required: false
+  fail-route-increase:
+    description: "Fail if a route's first-load size increases by more than this amount or percent."
+    required: false
+  warn-total-increase:
+    description: 'Warn if the total client JS size increases by more than this amount or percent.'
+    required: false
+  fail-total-increase:
+    description: 'Fail if the total client JS size increases by more than this amount or percent.'
+    required: false
+  warn-shared-size:
+    description: "Warn if a router's shared chunk size exceeds this budget."
+    required: false
+  fail-shared-size:
+    description: "Fail if a router's shared chunk size exceeds this budget."
+    required: false
+  budgets-file:
+    description: 'Path to a JSON file with per-route glob threshold overrides.'
+    required: false
+
+outputs:
+  sizes-path:
+    description: 'Path to the measured sizes JSON.'
+  report-path:
+    description: 'Path to the rendered Markdown report.'
+  status:
+    description: 'Overall status: pass, warn, or fail.'
+  baseline-status:
+    description: 'Baseline lookup status: found, missing, or incompatible.'
+  total-size:
+    description: 'Total compressed client JS size in bytes (union of all route files).'
+  total-delta:
+    description: 'Byte delta of total-size versus the baseline, if any.'
+  warning-count:
+    description: 'Number of threshold warnings.'
+  failure-count:
+    description: 'Number of threshold failures.'
+
+runs:
+  using: 'node24'
+  main: 'dist/index.js'

@@ -1,0 +1,38 @@
+{
+  "pages": {
+    "/(marketing)/about/page": [
+      "static/chunks/48655ed6c9c9fe09.js",
+      "static/chunks/0e0c64984e756cdd.js",
+      "static/chunks/02d90e606d9b4404.js",
+      "static/chunks/bd8e7c33d2e5cc46.js",
+      "static/chunks/c16f52ae700b9b0c.js",
+      "static/chunks/c4ad13ce314e58d1.js",
+      "static/chunks/turbopack-efa63d5110fe0380.js"
+    ],
+    "/_not-found/page": [
+      "static/chunks/48655ed6c9c9fe09.js",
+      "static/chunks/0e0c64984e756cdd.js",
+      "static/chunks/bd8e7c33d2e5cc46.js",
+      "static/chunks/c16f52ae700b9b0c.js",
+      "static/chunks/c4ad13ce314e58d1.js",
+      "static/chunks/turbopack-efa63d5110fe0380.js"
+    ],
+    "/page": [
+      "static/chunks/48655ed6c9c9fe09.js",
+      "static/chunks/0e0c64984e756cdd.js",
+      "static/chunks/bd8e7c33d2e5cc46.js",
+      "static/chunks/c16f52ae700b9b0c.js",
+      "static/chunks/c4ad13ce314e58d1.js",
+      "static/chunks/turbopack-efa63d5110fe0380.js"
+    ],
+    "/products/[slug]/page": [
+      "static/chunks/48655ed6c9c9fe09.js",
+      "static/chunks/0e0c64984e756cdd.js",
+      "static/chunks/25313a698714a344.js",
+      "static/chunks/bd8e7c33d2e5cc46.js",
+      "static/chunks/c16f52ae700b9b0c.js",
+      "static/chunks/c4ad13ce314e58d1.js",
+      "static/chunks/turbopack-efa63d5110fe0380.js"
+    ]
+  }
+}
