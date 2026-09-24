@@ -50,4 +50,28 @@ describe('codeSpan', () => {
     expect(codeSpan('`leading')).toBe('`` `leading ``');
     expect(codeSpan('trailing`')).toBe('`` trailing` ``');
   });
+
+  it('renders angle brackets literally, unlike escapeCell', () => {
+    expect(codeSpan('/a<b>')).toBe('`/a<b>`');
+  });
+
+  it('neutralizes a literal HTML comment close without entity-encoding it', () => {
+    const result = codeSpan('/evil-->route');
+    expect(result).not.toContain('-->');
+    expect(result).not.toContain('&gt;');
+  });
+
+  it('neutralizes a literal HTML comment open without entity-encoding it', () => {
+    const result = codeSpan('/evil<!--route');
+    expect(result).not.toContain('<!--');
+    expect(result).not.toContain('&lt;');
+  });
+
+  it('is not bypassable by concatenation across neutralized fragments', () => {
+    expect(codeSpan('---->>')).not.toContain('-->');
+    const spoofed = '<!<!---- nextjs-bundle-analysis:web ---->>';
+    const result = codeSpan(spoofed);
+    expect(result).not.toContain('<!--');
+    expect(result).not.toContain('-->');
+  });
 });
