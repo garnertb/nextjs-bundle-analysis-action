@@ -28,7 +28,7 @@ describe('runBuildCommand', () => {
     expect(execMock).not.toHaveBeenCalled();
   });
 
-  it('runs the command through bash -c with a scrubbed env in the working directory', async () => {
+  it('runs the command through sh -c with a scrubbed env in the working directory', async () => {
     let capturedEnv: Record<string, string> | undefined;
     const execMock = vi.fn(async (_command, _args, options) => {
       capturedEnv = options?.env as Record<string, string>;
@@ -43,17 +43,17 @@ describe('runBuildCommand', () => {
       platform: 'linux',
     });
     expect(execMock).toHaveBeenCalledWith(
-      'bash',
+      'sh',
       ['-c', 'pnpm build'],
-      expect.objectContaining({ cwd: '/repo/apps/web' }),
+      expect.objectContaining({ cwd: '/repo/apps/web', windowsVerbatimArguments: false }),
     );
     expect(capturedEnv).toEqual({ MY_SECRET: 'keep-me' });
   });
 
-  it('runs the command through cmd /d /s /c on Windows', async () => {
+  it('runs the command through cmd /d /s /c on Windows, quoted and verbatim', async () => {
     const execMock = vi.fn(async () => 0);
     await runBuildCommand({
-      command: 'pnpm build',
+      command: 'pnpm build --filter "web"',
       workingDirectory: '.',
       eventName: 'push',
       exec: execMock,
@@ -61,8 +61,8 @@ describe('runBuildCommand', () => {
     });
     expect(execMock).toHaveBeenCalledWith(
       'cmd',
-      ['/d', '/s', '/c', 'pnpm build'],
-      expect.anything(),
+      ['/d', '/s', '/c', '"pnpm build --filter "web""'],
+      expect.objectContaining({ windowsVerbatimArguments: true }),
     );
   });
 

@@ -99841,7 +99841,11 @@ function scrubBuildEnv(env = process.env) {
 // src/github/build.ts
 var UNSAFE_BUILD_EVENTS = /* @__PURE__ */ new Set(["pull_request_target", "workflow_run"]);
 function toShellInvocation(command, platform2) {
-  return platform2 === "win32" ? { commandLine: "cmd", args: ["/d", "/s", "/c", command] } : { commandLine: "bash", args: ["-c", command] };
+  return platform2 === "win32" ? {
+    commandLine: "cmd",
+    args: ["/d", "/s", "/c", `"${command}"`],
+    windowsVerbatimArguments: true
+  } : { commandLine: "sh", args: ["-c", command], windowsVerbatimArguments: false };
 }
 async function runBuildCommand(options) {
   if (UNSAFE_BUILD_EVENTS.has(options.eventName)) {
@@ -99850,13 +99854,14 @@ async function runBuildCommand(options) {
     );
   }
   const run2 = options.exec ?? exec;
-  const { commandLine, args } = toShellInvocation(
+  const { commandLine, args, windowsVerbatimArguments } = toShellInvocation(
     options.command,
     options.platform ?? process.platform
   );
   const exitCode = await run2(commandLine, args, {
     cwd: options.workingDirectory,
-    env: scrubBuildEnv(options.env ?? process.env)
+    env: scrubBuildEnv(options.env ?? process.env),
+    windowsVerbatimArguments
   });
   if (exitCode !== 0) {
     throw new Error(`build-command exited with code ${exitCode}.`);

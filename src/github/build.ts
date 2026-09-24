@@ -28,14 +28,27 @@ export interface RunBuildCommandOptions {
  * `pnpm`, `build`, silently skipping the second command). Route it through
  * a real shell instead, matching how `run:` steps behave elsewhere in a
  * workflow.
+ *
+ * On Windows, `cmd.exe /c` expects its command line quoted as a single
+ * argument with `"`-doubling semantics that don't match `@actions/exec`'s
+ * own argument-quoting (which escapes `"` as `\"`, something `cmd.exe`
+ * doesn't understand and would pass through literally). Wrap `command` in
+ * quotes ourselves and set `windowsVerbatimArguments: true` so `child_process`
+ * passes the args through unmodified, matching how Node's own `shell: true`
+ * spawns `cmd.exe`. `sh` (not `bash`) is used on POSIX so this also works in
+ * minimal containers (e.g. Alpine) that don't ship bash.
  */
 function toShellInvocation(
   command: string,
   platform: NodeJS.Platform,
-): { commandLine: string; args: string[] } {
+): { commandLine: string; args: string[]; windowsVerbatimArguments: boolean } {
   return platform === 'win32'
-    ? { commandLine: 'cmd', args: ['/d', '/s', '/c', command] }
-    : { commandLine: 'bash', args: ['-c', command] };
+    ? {
+        commandLine: 'cmd',
+        args: ['/d', '/s', '/c', `"${command}"`],
+        windowsVerbatimArguments: true,
+      }
+    : { commandLine: 'sh', args: ['-c', command], windowsVerbatimArguments: false };
 }
 
 /**
@@ -53,13 +66,14 @@ export async function runBuildCommand(options: RunBuildCommandOptions): Promise<
   }
 
   const run = options.exec ?? exec.exec;
-  const { commandLine, args } = toShellInvocation(
+  const { commandLine, args, windowsVerbatimArguments } = toShellInvocation(
     options.command,
     options.platform ?? process.platform,
   );
   const exitCode = await run(commandLine, args, {
     cwd: options.workingDirectory,
     env: scrubBuildEnv(options.env ?? process.env),
+    windowsVerbatimArguments,
   });
   if (exitCode !== 0) {
     throw new Error(`build-command exited with code ${exitCode}.`);
