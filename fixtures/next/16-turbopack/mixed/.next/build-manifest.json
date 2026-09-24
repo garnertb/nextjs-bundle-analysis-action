@@ -1,29 +1,29 @@
 {
   "pages": {
     "/_app": [
-      "static/chunks/0j-sg8nm7rps4.js",
-      "static/chunks/1e2ip17p0nt4d.js",
-      "static/chunks/turbopack-42kqxtzffahy4.js"
+      "static/chunks/1u7d3g9ui9k6u.js",
+      "static/chunks/2swr6i7d99d2a.js",
+      "static/chunks/turbopack-2uew38sfeoq-_.js"
     ],
     "/_error": [
-      "static/chunks/0_swym08y83_2.js",
-      "static/chunks/1e2ip17p0nt4d.js",
-      "static/chunks/turbopack-24ynxi047jwj2.js"
+      "static/chunks/2-apn50eyy52b.js",
+      "static/chunks/2swr6i7d99d2a.js",
+      "static/chunks/turbopack-00ndqac14ds7f.js"
     ],
     "/legacy": [
-      "static/chunks/3j-kcfyg869li.js",
-      "static/chunks/1e2ip17p0nt4d.js",
-      "static/chunks/turbopack-30-ntc82zvo6h.js"
+      "static/chunks/2o7ne259rpay0.js",
+      "static/chunks/2swr6i7d99d2a.js",
+      "static/chunks/turbopack-0kf93j3exu-em.js"
     ],
     "/legacy/about": [
-      "static/chunks/1zn_n18-mt_53.js",
-      "static/chunks/1e2ip17p0nt4d.js",
-      "static/chunks/turbopack-3m5fdc8hmn6x8.js"
+      "static/chunks/3g2uu3obvkrxr.js",
+      "static/chunks/2swr6i7d99d2a.js",
+      "static/chunks/turbopack-1urz3umtsnv4k.js"
     ],
     "/legacy/blog/[slug]": [
-      "static/chunks/2bw12q5prsv_l.js",
-      "static/chunks/1e2ip17p0nt4d.js",
-      "static/chunks/turbopack-3-cia87a0pk-u.js"
+      "static/chunks/3ny-k9syxy-bl.js",
+      "static/chunks/2swr6i7d99d2a.js",
+      "static/chunks/turbopack-431mxpgg7fdof.js"
     ]
   },
   "devFiles": [],
@@ -31,15 +31,15 @@
     "static/chunks/0cz1d0mv5g_q7.js"
   ],
   "lowPriorityFiles": [
-    "static/kdTY2nnYzFi-50RdcZ_Hq/_buildManifest.js",
-    "static/kdTY2nnYzFi-50RdcZ_Hq/_ssgManifest.js",
-    "static/kdTY2nnYzFi-50RdcZ_Hq/_clientMiddlewareManifest.js"
+    "static/NvPjBwBI4Oq0trgwRuQww/_buildManifest.js",
+    "static/NvPjBwBI4Oq0trgwRuQww/_ssgManifest.js",
+    "static/NvPjBwBI4Oq0trgwRuQww/_clientMiddlewareManifest.js"
   ],
   "rootMainFiles": [
-    "static/chunks/3l04zcqx63h3y.js",
-    "static/chunks/0cegfsgm6lvdz.js",
-    "static/chunks/0bma92pht_c97.js",
-    "static/chunks/turbopack-0v-kycb5ehozt.js"
+    "static/chunks/3s5pmkd2ir1yc.js",
+    "static/chunks/0bkymafeh5y29.js",
+    "static/chunks/3gzbjf3balqow.js",
+    "static/chunks/turbopack-2eugc5apgy_de.js"
   ],
   "rootMainFilesTree": {},
   "pagesChunkGroupBootstrapParams": {},

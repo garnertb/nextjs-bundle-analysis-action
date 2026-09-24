@@ -1,1 +1,0 @@
-(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,49413,t=>{"use strict";t.s(["HomeClient",()=>r]);var o=t.i(43476);let e=Array.from({length:32},(t,o)=>"home-".concat(o.toString().padStart(2,"0")));function r(){return(0,o.jsx)("p",{children:e.join(", ")})}}]);

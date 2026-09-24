@@ -83,8 +83,8 @@
       "routeKeys": {
         "nxtPslug": "nxtPslug"
       },
-      "dataRouteRegex": "^/_next/data/evBwEjsOS55O\\-pb1xNM\\-I/legacy/blog/([^/]+?)\\.json$",
-      "namedDataRouteRegex": "^/_next/data/evBwEjsOS55O\\-pb1xNM\\-I/legacy/blog/(?<nxtPslug>[^/]+?)\\.json$"
+      "dataRouteRegex": "^/_next/data/xgMUbCtWE738uVcIWAesN/legacy/blog/([^/]+?)\\.json$",
+      "namedDataRouteRegex": "^/_next/data/xgMUbCtWE738uVcIWAesN/legacy/blog/(?<nxtPslug>[^/]+?)\\.json$"
     }
   ],
   "rsc": {
