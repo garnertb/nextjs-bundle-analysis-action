@@ -1,7 +1,0 @@
-{
-  "/api/hello/route": "/api/hello",
-  "/(marketing)/about/page": "/about",
-  "/page": "/",
-  "/products/[slug]/page": "/products/[slug]",
-  "/_not-found/page": "/_not-found"
-}

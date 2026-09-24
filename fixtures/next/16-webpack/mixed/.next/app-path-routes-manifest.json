@@ -1,7 +1,0 @@
-{
-  "/_not-found/page": "/_not-found",
-  "/api/hello/route": "/api/hello",
-  "/(marketing)/about/page": "/about",
-  "/page": "/",
-  "/products/[slug]/page": "/products/[slug]"
-}
