@@ -126,6 +126,7 @@ function runReport(flags: Flags): void {
     bundler: head.bundler,
     actionVersion: optionalString(flags, 'action-version') ?? 'dev',
     jobSummaryUrl: optionalString(flags, 'job-summary-url'),
+    repoUrl: optionalString(flags, 'repo-url'),
   };
 
   const { markdown } = renderReport(comparison, findings, meta);
