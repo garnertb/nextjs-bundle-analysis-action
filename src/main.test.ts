@@ -71,10 +71,14 @@ const artifactState = vi.hoisted(() => ({
 }));
 
 vi.mock('@actions/artifact', () => ({
-  DefaultArtifactClient: vi.fn().mockImplementation(() => ({
-    uploadArtifact: artifactState.uploadArtifact,
-    downloadArtifact: artifactState.downloadArtifact,
-  })),
+  // A real (non-arrow) function, since `new` on an arrow-function mock
+  // implementation throws "is not a constructor".
+  DefaultArtifactClient: vi.fn().mockImplementation(function DefaultArtifactClient() {
+    return {
+      uploadArtifact: artifactState.uploadArtifact,
+      downloadArtifact: artifactState.downloadArtifact,
+    };
+  }),
 }));
 
 const apiState = vi.hoisted<{ fakeApi: GithubApi | undefined }>(() => ({ fakeApi: undefined }));
