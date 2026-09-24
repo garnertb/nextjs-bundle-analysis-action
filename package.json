@@ -19,7 +19,14 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "esbuild"
-    ]
+    ],
+    "packageExtensions": {
+      "@actions/artifact": {
+        "dependencies": {
+          "@protobuf-ts/runtime-rpc": "^2.9.4"
+        }
+      }
+    }
   },
   "engines": {
     "node": ">=24"

@@ -4,6 +4,8 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+packageExtensionsChecksum: sha256-ii/lEo1+DsuBcPoveQhfI/jOc94A5HcAlbOIHY3zBu8=
+
 importers:
 
   .:
@@ -1874,6 +1876,7 @@ snapshots:
       '@octokit/request-error': 7.1.2
       '@protobuf-ts/plugin': 2.11.1
       '@protobuf-ts/runtime': 2.11.1
+      '@protobuf-ts/runtime-rpc': 2.11.1
       archiver: 7.0.1
       jwt-decode: 4.0.0
       unzip-stream: 0.3.4
