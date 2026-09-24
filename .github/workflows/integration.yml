@@ -1,0 +1,185 @@
+name: Integration
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        # One entry per combo/app cell, rather than a combo x app cross
+        # product, since expectUnsupported varies per-app within 16-webpack
+        # (only its App Router and mixed cells are documented as
+        # unsupported; its Pages Router cell is unaffected).
+        include:
+          - { combo: 14-webpack, app: app-router, buildFlag: '', expectUnsupported: false }
+          - { combo: 14-webpack, app: pages-router, buildFlag: '', expectUnsupported: false }
+          - { combo: 14-webpack, app: mixed, buildFlag: '', expectUnsupported: false }
+          - { combo: 15-webpack, app: app-router, buildFlag: '', expectUnsupported: false }
+          - { combo: 15-webpack, app: pages-router, buildFlag: '', expectUnsupported: false }
+          - { combo: 15-webpack, app: mixed, buildFlag: '', expectUnsupported: false }
+          - {
+              combo: 15-turbopack,
+              app: app-router,
+              buildFlag: '--turbopack',
+              expectUnsupported: false,
+            }
+          - {
+              combo: 15-turbopack,
+              app: pages-router,
+              buildFlag: '--turbopack',
+              expectUnsupported: false,
+            }
+          - { combo: 15-turbopack, app: mixed, buildFlag: '--turbopack', expectUnsupported: false }
+          - { combo: 16-webpack, app: app-router, buildFlag: '--webpack', expectUnsupported: true }
+          - {
+              combo: 16-webpack,
+              app: pages-router,
+              buildFlag: '--webpack',
+              expectUnsupported: false,
+            }
+          - { combo: 16-webpack, app: mixed, buildFlag: '--webpack', expectUnsupported: true }
+          - { combo: 16-turbopack, app: app-router, buildFlag: '', expectUnsupported: false }
+          - { combo: 16-turbopack, app: pages-router, buildFlag: '', expectUnsupported: false }
+          - { combo: 16-turbopack, app: mixed, buildFlag: '', expectUnsupported: false }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: package.json
+          cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            fixtures/next/**/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Compute expected sizes from the committed fixture
+        run: |
+          set -o pipefail
+          pnpm cli measure \
+            --next-dir "fixtures/next/${{ matrix.combo }}/${{ matrix.app }}/.next" \
+            --compression gzip \
+            --out /tmp/expected.json
+      - name: Assemble a fresh build directory (fixture source + this combo's pinned lockfile)
+        run: |
+          set -o pipefail
+          work="${{ runner.temp }}/${{ matrix.combo }}-${{ matrix.app }}"
+          rm -rf "$work"
+          mkdir -p "$work"
+          cp -R "fixtures/apps/${{ matrix.app }}/." "$work/"
+          cp "fixtures/next/${{ matrix.combo }}/${{ matrix.app }}/package.json" "$work/package.json"
+          cp "fixtures/next/${{ matrix.combo }}/${{ matrix.app }}/pnpm-lock.yaml" "$work/pnpm-lock.yaml"
+          echo "work_dir=$work" >> "$GITHUB_ENV"
+      - name: Run the action against a freshly built app
+        id: analyze
+        continue-on-error: ${{ matrix.expectUnsupported }}
+        uses: ./
+        with:
+          working-directory: ${{ env.work_dir }}
+          build-command: >-
+            pnpm install --frozen-lockfile && pnpm exec next build ${{ matrix.buildFlag }}
+          name: ${{ matrix.combo }}-${{ matrix.app }}
+          upload-artifact: false
+          comment: false
+          job-summary: false
+      - name: Assert the outcome matches docs/manifests.md's support verdict
+        run: |
+          set -o pipefail
+          outcome="${{ steps.analyze.outcome }}"
+          if [[ "${{ matrix.expectUnsupported }}" == "true" ]]; then
+            if [[ "$outcome" != "failure" ]]; then
+              echo "::error::${{ matrix.combo }}/${{ matrix.app }} was expected to fail as an unsupported App Router combo (see docs/manifests.md), but it $outcome."
+              exit 1
+            fi
+            echo "OK: ${{ matrix.combo }}/${{ matrix.app }} failed as documented (unsupported App Router combo)."
+          else
+            if [[ "$outcome" != "success" ]]; then
+              echo "::error::${{ matrix.combo }}/${{ matrix.app }} was expected to succeed, but it $outcome."
+              exit 1
+            fi
+          fi
+      - name: Assert emitted routes and sizes match the committed fixture
+        if: matrix.expectUnsupported == false
+        run: |
+          set -o pipefail
+          node scripts/assert-integration-sizes.mjs /tmp/expected.json "${{ steps.analyze.outputs.sizes-path }}"
+
+  baseline-check:
+    # A single stable, always-supported cell that runs on both push (to
+    # create the baseline artifact) and pull_request (to look it up), using
+    # the default artifact-name/baseline-workflow so the two runs match.
+    # This workflow file's own first-ever run has no baseline yet, so the
+    # pull_request assertion below tolerates `missing` in addition to
+    # `found`; see docs/manifests.md and the PR description for how to
+    # confirm `found` after this workflow has run once on main.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: package.json
+          cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            fixtures/next/**/pnpm-lock.yaml
+      - name: Assemble a fresh build directory (fixture source + the 15-webpack pinned lockfile)
+        run: |
+          set -o pipefail
+          work="${{ runner.temp }}/baseline-check"
+          rm -rf "$work"
+          mkdir -p "$work"
+          cp -R fixtures/apps/app-router/. "$work/"
+          cp fixtures/next/15-webpack/app-router/package.json "$work/package.json"
+          cp fixtures/next/15-webpack/app-router/pnpm-lock.yaml "$work/pnpm-lock.yaml"
+          echo "work_dir=$work" >> "$GITHUB_ENV"
+      - name: Analyze
+        id: analyze
+        uses: ./
+        with:
+          working-directory: ${{ env.work_dir }}
+          build-command: pnpm install --frozen-lockfile && pnpm exec next build
+          name: integration-baseline-check
+          artifact-name: nextjs-bundle-analysis-integration-baseline-check
+          upload-artifact: true
+          comment: ${{ github.event_name == 'pull_request' }}
+          job-summary: true
+      - name: Assert baseline-status
+        if: github.event_name == 'pull_request'
+        run: |
+          set -o pipefail
+          status="${{ steps.analyze.outputs.baseline-status }}"
+          echo "baseline-status=$status"
+          case "$status" in
+            found)
+              if [[ -z "${{ steps.analyze.outputs.total-delta }}" ]]; then
+                echo "::error::baseline-status=found but total-delta output is empty."
+                exit 1
+              fi
+              echo "OK: baseline found and delta computed."
+              ;;
+            missing)
+              echo "::warning::baseline-status=missing (expected before the first successful push to main creates a baseline artifact on this workflow)."
+              ;;
+            *)
+              echo "::error::Unexpected baseline-status: $status"
+              exit 1
+              ;;
+          esac
