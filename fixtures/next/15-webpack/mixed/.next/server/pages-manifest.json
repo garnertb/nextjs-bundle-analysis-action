@@ -1,0 +1,9 @@
+{
+  "/_error": "pages/_error.js",
+  "/legacy/about": "pages/legacy/about.html",
+  "/legacy": "pages/legacy.html",
+  "/_app": "pages/_app.js",
+  "/legacy/blog/[slug]": "pages/legacy/blog/[slug].js",
+  "/_document": "pages/_document.js",
+  "/404": "pages/404.html"
+}

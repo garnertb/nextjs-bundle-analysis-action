@@ -1,0 +1,8 @@
+{
+  "/(marketing)/about/page": "/about",
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/api/hello/route": "/api/hello",
+  "/page": "/",
+  "/products/[slug]/page": "/products/[slug]"
+}

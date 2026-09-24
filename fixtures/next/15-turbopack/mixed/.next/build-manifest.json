@@ -1,0 +1,45 @@
+{
+  "pages": {
+    "/_app": [
+      "static/chunks/773bb8969a59d914.js",
+      "static/chunks/0b3526917ff5e71c.js",
+      "static/chunks/turbopack-1113eda1c957ba34.js"
+    ],
+    "/_error": [
+      "static/chunks/59c2395780e24c98.js",
+      "static/chunks/0b3526917ff5e71c.js",
+      "static/chunks/turbopack-3415ad3e11e41b32.js"
+    ],
+    "/legacy": [
+      "static/chunks/e4b6174a46987f45.js",
+      "static/chunks/0b3526917ff5e71c.js",
+      "static/chunks/turbopack-4576bf449c24e602.js"
+    ],
+    "/legacy/about": [
+      "static/chunks/ae608b2ac79d1445.js",
+      "static/chunks/0b3526917ff5e71c.js",
+      "static/chunks/turbopack-158548f224c5d714.js"
+    ],
+    "/legacy/blog/[slug]": [
+      "static/chunks/fb9bea26066cb383.js",
+      "static/chunks/0b3526917ff5e71c.js",
+      "static/chunks/turbopack-319737e60c8eb58b.js"
+    ]
+  },
+  "devFiles": [],
+  "ampDevFiles": [],
+  "polyfillFiles": [
+    "static/chunks/a6dad97d9634a72d.js"
+  ],
+  "lowPriorityFiles": [
+    "static/jfOSHUY_rmdhMcfHJN24G/_ssgManifest.js",
+    "static/jfOSHUY_rmdhMcfHJN24G/_buildManifest.js"
+  ],
+  "rootMainFiles": [
+    "static/chunks/c85a7d07e7b82c9a.js",
+    "static/chunks/ef4a2295af59a064.js",
+    "static/chunks/49574049bd9060fa.js",
+    "static/chunks/turbopack-02729fca2cf8278d.js"
+  ],
+  "ampFirstPages": []
+}
