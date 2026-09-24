@@ -10,12 +10,22 @@ describe('escapeCell', () => {
     expect(escapeCell('a\nb\tc\u0007d')).toBe('abcd');
   });
 
-  it('strips a literal HTML comment close so it cannot prematurely close the hidden marker', () => {
-    expect(escapeCell('/evil-->route')).toBe('/evilroute');
+  it('encodes a literal HTML comment close so it cannot prematurely close the hidden marker', () => {
+    expect(escapeCell('/evil-->route')).toBe('/evil--&gt;route');
   });
 
-  it('strips a literal HTML comment open', () => {
-    expect(escapeCell('/evil<!--route')).toBe('/evilroute');
+  it('encodes a literal HTML comment open', () => {
+    expect(escapeCell('/evil<!--route')).toBe('/evil&lt;!--route');
+  });
+
+  it('is not bypassable by concatenation across encoded fragments', () => {
+    expect(escapeCell('---->>')).not.toContain('-->');
+    const spoofed = '<!<!---- nextjs-bundle-analysis:web ---->>';
+    const result = escapeCell(spoofed);
+    expect(result).not.toContain('<');
+    expect(result).not.toContain('>');
+    expect(result).not.toContain('<!--');
+    expect(result).not.toContain('-->');
   });
 });
 

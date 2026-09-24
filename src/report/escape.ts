@@ -2,13 +2,16 @@
 const CONTROL_CHARS = /[\x00-\x1f\x7f]/g;
 
 /**
- * Strips control characters and any literal HTML-comment delimiter, so a
+ * Strips control characters and HTML-entity-encodes `<`/`>`, so a
  * repo-derived string (a route, branch name, error message, ...) can never
- * break out of a table row or spoof/prematurely close the hidden upsert
- * marker `<!-- nextjs-bundle-analysis:<slug> -->`.
+ * contain a literal `<!--`/`-->`. This can't be reconstructed by
+ * concatenation the way stripping those substrings could (e.g. the input
+ * `<!<!---- nextjs-bundle-analysis:web ---->>` would survive a naive
+ * strip-and-rescan as a valid spoofed marker); encoding is a one-way,
+ * single-pass transform with no such reassembly.
  */
 function sanitize(text: string): string {
-  return text.replace(CONTROL_CHARS, '').replaceAll('-->', '').replaceAll('<!--', '');
+  return text.replace(CONTROL_CHARS, '').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 }
 
 /** Escapes a plain (non-code) string for use inside a Markdown table cell. */
