@@ -30,6 +30,8 @@ export interface ReportMeta {
   jobSummaryUrl: string | undefined;
   /** Repository URL (no trailing slash), used to link the baseline SHA as `<repoUrl>/commit/<sha>`. */
   repoUrl: string | undefined;
+  /** Set when the baseline lookup itself failed (e.g. an API error), appended to the "no baseline" note. */
+  baselineWarning: string | undefined;
 }
 
 export interface RenderResult {
@@ -368,7 +370,7 @@ function capSearch(
 function appendTruncationNotice(blocks: string[], meta: ReportMeta): string[] {
   const link = meta.jobSummaryUrl
     ? ` See the [job summary](${meta.jobSummaryUrl}) for full details.`
-    : ' See the job summary for full details.';
+    : ' Full details were omitted from this comment; enable `job-summary` or download the uploaded sizes artifact for the complete report.';
   return [...blocks, `<sub>Report truncated to fit the comment size limit.${link}</sub>`];
 }
 
@@ -463,7 +465,7 @@ function buildBlocks(
     const lineA = `${totalLine} · ${comparison.routes.length} routes · ${findingCountsPhrase(failureCount, warningCount)}`;
     const statusLine =
       comparison.baselineStatus === 'missing'
-        ? `No baseline from ${codeSpan(meta.baseBranch)} yet. One is created on the next successful push to ${codeSpan(meta.baseBranch)}. Absolute budgets were still checked.`
+        ? `No baseline from ${codeSpan(meta.baseBranch)} yet. One is created on the next successful push to ${codeSpan(meta.baseBranch)}. Absolute budgets were still checked.${meta.baselineWarning ? ` (${escapeCell(meta.baselineWarning)})` : ''}`
         : `Baseline ${baseShaSegment(meta)} was measured with ${comparison.incompatibility?.baseCompression} / collector v${comparison.incompatibility?.baseCollectorVersion} (now ${comparison.incompatibility?.headCompression} / collector v${comparison.incompatibility?.headCollectorVersion}), so deltas are skipped this run. Absolute budgets were still checked.`;
     blocks.push(`${lineA}\n${statusLine}`);
   }

@@ -15,7 +15,7 @@ import {
 import { createGithubApi } from './github/api.js';
 import { buildUnreadableBaselineComparison, findBaselineArtifact } from './github/baseline.js';
 import { runBuildCommand } from './github/build.js';
-import { resolveTrustedCommentAuthor, upsertComment } from './github/comment.js';
+import { resolveTrustedCommentAuthors, upsertComment } from './github/comment.js';
 import { buildJobSummaryUrl, writeJobSummary } from './github/summary.js';
 import type { GithubApi } from './github/types.js';
 import { parseWorkflowFileFromRef } from './github/workflow-ref.js';
@@ -38,6 +38,7 @@ const INPUT_NAMES = [
   'upload-artifact',
   'github-token',
   'comment',
+  'comment-author',
   'job-summary',
   'compression',
   'significant-change',
@@ -139,6 +140,7 @@ interface BuildMetaParams {
   actionVersion: string;
   repoUrl: string;
   jobSummaryUrl: string | undefined;
+  baselineWarning: string | undefined;
 }
 
 function buildReportMeta(params: BuildMetaParams): ReportMeta {
@@ -156,6 +158,7 @@ function buildReportMeta(params: BuildMetaParams): ReportMeta {
     actionVersion: params.actionVersion,
     jobSummaryUrl: params.jobSummaryUrl,
     repoUrl: params.repoUrl,
+    baselineWarning: params.baselineWarning,
   };
 }
 
@@ -175,70 +178,96 @@ interface ResolvedBaseline {
   comparison: Comparison;
   baseBranch: string;
   baseShortSha: string | undefined;
+  /** Set when the lookup itself errored, so the caller can surface it in the report. */
+  warning: string | undefined;
 }
 
 /** Baseline lookup + download for the `pull_request` path; degrades to a warning + "missing"/"incompatible" status rather than throwing. */
 async function resolveBaseline(params: ResolveBaselineParams): Promise<ResolvedBaseline> {
-  const baseBranch =
-    params.inputs.baseBranch ??
-    params.pullRequestBaseRef ??
-    (await params.api.getDefaultBranch(params));
   const workflowFile =
     params.inputs.baselineWorkflow ?? parseWorkflowFileFromRef(process.env['GITHUB_WORKFLOW_REF']);
+  let baseBranch = params.inputs.baseBranch ?? params.pullRequestBaseRef;
 
-  if (workflowFile === undefined) {
-    core.warning('Could not determine the baseline workflow file; skipping the baseline lookup.');
-    return {
-      comparison: compareBundleReports(params.head, undefined),
-      baseBranch,
-      baseShortSha: undefined,
-    };
-  }
-  if (params.repositoryId === undefined) {
-    core.warning("Could not determine this repository's ID; skipping the trusted baseline lookup.");
-    return {
-      comparison: compareBundleReports(params.head, undefined),
-      baseBranch,
-      baseShortSha: undefined,
-    };
-  }
+  try {
+    baseBranch ??= await params.api.getDefaultBranch(params);
 
-  const match = await findBaselineArtifact({
-    api: params.api,
-    owner: params.owner,
-    repo: params.repo,
-    workflowFile,
-    branch: baseBranch,
-    artifactName: params.artifactName,
-    repositoryId: params.repositoryId,
-  });
-  if (!match) {
-    return {
-      comparison: compareBundleReports(params.head, undefined),
-      baseBranch,
-      baseShortSha: undefined,
-    };
-  }
+    if (workflowFile === undefined) {
+      core.warning('Could not determine the baseline workflow file; skipping the baseline lookup.');
+      return {
+        comparison: compareBundleReports(params.head, undefined),
+        baseBranch,
+        baseShortSha: undefined,
+        warning: undefined,
+      };
+    }
+    if (params.repositoryId === undefined) {
+      core.warning(
+        "Could not determine this repository's ID; skipping the trusted baseline lookup.",
+      );
+      return {
+        comparison: compareBundleReports(params.head, undefined),
+        baseBranch,
+        baseShortSha: undefined,
+        warning: undefined,
+      };
+    }
 
-  const result = await downloadBaselineReport({
-    client: new DefaultArtifactClient(),
-    artifactId: match.artifactId,
-    workflowRunId: match.runId,
-    token: params.inputs.githubToken,
-    repositoryOwner: params.owner,
-    repositoryName: params.repo,
-    destinationDirectory: scratchDirectory(params.slug, 'baseline'),
-  });
-  const baseShortSha = match.headSha.slice(0, 7);
-  if (result.status === 'found') {
+    const match = await findBaselineArtifact({
+      api: params.api,
+      owner: params.owner,
+      repo: params.repo,
+      workflowFile,
+      branch: baseBranch,
+      artifactName: params.artifactName,
+      repositoryId: params.repositoryId,
+    });
+    if (!match) {
+      return {
+        comparison: compareBundleReports(params.head, undefined),
+        baseBranch,
+        baseShortSha: undefined,
+        warning: undefined,
+      };
+    }
+
+    const result = await downloadBaselineReport({
+      client: new DefaultArtifactClient(),
+      artifactId: match.artifactId,
+      workflowRunId: match.runId,
+      token: params.inputs.githubToken,
+      repositoryOwner: params.owner,
+      repositoryName: params.repo,
+      destinationDirectory: scratchDirectory(params.slug, 'baseline'),
+    });
+    const baseShortSha = match.headSha.slice(0, 7);
+    if (result.status === 'found') {
+      return {
+        comparison: compareBundleReports(params.head, result.report),
+        baseBranch,
+        baseShortSha,
+        warning: undefined,
+      };
+    }
+    core.warning(result.reason);
     return {
-      comparison: compareBundleReports(params.head, result.report),
+      comparison: buildUnreadableBaselineComparison(params.head),
       baseBranch,
       baseShortSha,
+      warning: undefined,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const warning =
+      `Baseline lookup failed, so this run is compared against no baseline: ${message} ` +
+      'If this is a 403, add "permissions: actions: read" to the workflow so it can list workflow runs.';
+    core.warning(warning);
+    return {
+      comparison: compareBundleReports(params.head, undefined),
+      baseBranch: baseBranch ?? params.pullRequestBaseRef ?? 'unknown',
+      baseShortSha: undefined,
+      warning,
     };
   }
-  core.warning(result.reason);
-  return { comparison: buildUnreadableBaselineComparison(params.head), baseBranch, baseShortSha };
 }
 
 export async function run(): Promise<void> {
@@ -282,19 +311,21 @@ export async function run(): Promise<void> {
     const thresholds = buildThresholdConfigFromInputs(inputs);
     const actionVersion = process.env['GITHUB_ACTION_REF'] ?? 'dev';
     const repoUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}`;
-    const jobSummaryUrl = buildJobSummaryUrl({
-      serverUrl: context.serverUrl,
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      runId: context.runId,
-    });
+    const jobSummaryUrl = inputs.jobSummary
+      ? buildJobSummaryUrl({
+          serverUrl: context.serverUrl,
+          owner: context.repo.owner,
+          repo: context.repo.repo,
+          runId: context.runId,
+        })
+      : undefined;
 
     if (eventName === 'pull_request') {
       const pullRequest = context.payload.pull_request as { base?: { ref?: string } } | undefined;
       const repositoryId = (context.payload.repository as { id?: number } | undefined)?.id;
       const api = createGithubApi(github.getOctokit(inputs.githubToken));
 
-      const { comparison, baseBranch, baseShortSha } = await resolveBaseline({
+      const { comparison, baseBranch, baseShortSha, warning } = await resolveBaseline({
         api,
         inputs,
         owner: context.repo.owner,
@@ -318,24 +349,11 @@ export async function run(): Promise<void> {
         actionVersion,
         repoUrl,
         jobSummaryUrl,
+        baselineWarning: warning,
       });
 
-      if (inputs.comment) {
-        const { markdown } = renderReport(comparison, findings, meta);
-        const marker = `<!-- nextjs-bundle-analysis:${slug} -->`;
-        const trustedLogin = await resolveTrustedCommentAuthor(api);
-        const commentResult = await upsertComment({
-          api,
-          owner: context.repo.owner,
-          repo: context.repo.repo,
-          issueNumber: context.issue.number,
-          marker,
-          body: markdown,
-          trustedLogin,
-        });
-        if (commentResult.status === 'skipped') core.warning(commentResult.reason);
-      }
-
+      // Write the summary/outputs/annotations before the comment, so a comment API error
+      // (handled as a warning below) can never cost the run its outputs.
       await finalizeReport({
         sizesPath,
         reportPath,
@@ -344,6 +362,22 @@ export async function run(): Promise<void> {
         meta,
         jobSummary: inputs.jobSummary,
       });
+
+      if (inputs.comment) {
+        const { markdown } = renderReport(comparison, findings, meta);
+        const marker = `<!-- nextjs-bundle-analysis:${slug} -->`;
+        const trustedLogins = await resolveTrustedCommentAuthors(api, inputs.commentAuthor);
+        const commentResult = await upsertComment({
+          api,
+          owner: context.repo.owner,
+          repo: context.repo.repo,
+          issueNumber: context.issue.number,
+          marker,
+          body: markdown,
+          trustedLogins,
+        });
+        if (commentResult.status === 'skipped') core.warning(commentResult.reason);
+      }
     } else {
       // push / workflow_dispatch / other events: this run IS the future baseline, so only
       // absolute budgets apply (no baseline to diff against).
@@ -361,6 +395,7 @@ export async function run(): Promise<void> {
         actionVersion,
         repoUrl,
         jobSummaryUrl: undefined,
+        baselineWarning: undefined,
       });
 
       await finalizeReport({

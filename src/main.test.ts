@@ -236,6 +236,58 @@ describe('run', () => {
     expect(outputValue('baseline-status')).toBe('missing');
   });
 
+  it('warns and still writes outputs/summary when the baseline lookup errors (e.g. missing actions: read)', async () => {
+    contextState.current.eventName = 'pull_request';
+    contextState.current.payload = {
+      pull_request: { base: { ref: 'main' } },
+      repository: { id: 555 },
+    };
+    contextState.current.issue = { owner: 'octocat', repo: 'demo', number: 42 };
+    process.env['GITHUB_WORKFLOW_REF'] = 'octocat/demo/.github/workflows/ci.yml@refs/heads/main';
+    apiState.fakeApi = fakeGithubApi({
+      // eslint-disable-next-line require-yield -- deliberately throws before ever yielding a run
+      listWorkflowRuns: async function* () {
+        throw Object.assign(new Error('Resource not accessible by integration'), { status: 403 });
+      },
+    });
+
+    await run();
+
+    expect(outputValue('baseline-status')).toBe('missing');
+    expect(outputValue('status')).not.toBeUndefined();
+    expect(coreState.summaryWrite).toHaveBeenCalledOnce();
+    expect(coreState.setFailedCalls).toEqual([]);
+    const reportPath = outputValue('report-path') as string;
+    expect(existsSync(reportPath)).toBe(true);
+  });
+
+  it('downgrades a comment API error to a warning and still writes outputs/summary', async () => {
+    contextState.current.eventName = 'pull_request';
+    contextState.current.payload = {
+      pull_request: { base: { ref: 'main' } },
+      repository: { id: 555 },
+    };
+    contextState.current.issue = { owner: 'octocat', repo: 'demo', number: 42 };
+    const api = fakeGithubApi();
+    (api.createIssueComment as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      Object.assign(new Error('Unprocessable Entity'), { status: 422 }),
+    );
+    apiState.fakeApi = api;
+
+    await run();
+
+    expect(coreState.summaryWrite).toHaveBeenCalledOnce();
+    expect(coreState.setFailedCalls).toEqual([]);
+    const reportPath = outputValue('report-path') as string;
+    expect(existsSync(reportPath)).toBe(true);
+  });
+
+  it('throws when next-dir has no measurable routes', async () => {
+    coreState.inputs = defaultInputs({ 'next-dir': '.nxt-typo' });
+    await run();
+    expect(coreState.setFailedCalls).toHaveLength(1);
+  });
+
   it('sets failed only when a fail threshold is breached', async () => {
     coreState.inputs = defaultInputs({ 'fail-route-size': '1B' });
     await run();

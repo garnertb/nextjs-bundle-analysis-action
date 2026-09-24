@@ -74,6 +74,7 @@ const meta: ReportMeta = {
   actionVersion: 'v1.2.0',
   jobSummaryUrl: undefined,
   repoUrl: undefined,
+  baselineWarning: undefined,
 };
 
 describe('renderReport', () => {
