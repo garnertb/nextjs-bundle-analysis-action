@@ -16,7 +16,10 @@ day-to-day this is "merge the release PR", but verify it first.
    - `CHANGELOG.md`'s new entry looks sensible (no missing/miscategorized
      entries — check `release-please-config.json`'s `changelog-sections`
      if something is hidden that shouldn't be).
-   - `dist/` in the PR is fresh: `check-dist` must be green on it.
+   - `dist/` in the PR is fresh. release-please opens the PR with
+     `GITHUB_TOKEN`, so CI / Check dist / PR title don't run on it
+     automatically. Confirm `check-dist` is green on the `main` commit the
+     PR is based on, or close and reopen the PR to run the checks on it.
    - `package.json`'s `version` matches the PR title.
 
 2. **Merge the release PR** (squash, as usual). This triggers
