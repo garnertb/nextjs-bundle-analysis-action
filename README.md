@@ -86,7 +86,7 @@ percent (`5%`). Leaving a `warn-*`/`fail-*` input unset disables that check.
     # Needs `actions: read` and `pull-requests: write`; a missing scope
     # downgrades that feature to a warning rather than failing the run.
     # Default: ${{ github.token }}
-    github-token: ''
+    github-token: ${{ github.token }}
 
     # Whether to create or update a PR comment with the report.
     # Default: true
