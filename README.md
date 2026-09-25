@@ -151,7 +151,7 @@ action runs, and it just measures `.next`.
 - run: pnpm install --frozen-lockfile
 - uses: garnertb/nextjs-bundle-analysis-action@v1
   env:
-    KNOCK_API_KEY: ${{ secrets.KNOCK_API_KEY }} # passed to the build
+    MY_BUILD_SECRET: ${{ secrets.MY_BUILD_SECRET }} # step env is passed to the build
   with:
     name: web
     working-directory: apps/web
