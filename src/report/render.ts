@@ -17,7 +17,7 @@ export interface ReportMeta {
   name: string;
   slug: string;
   baseBranch: string;
-  /** Short SHA of the baseline commit; `undefined` when there's no baseline at all. */
+  /** Short SHA of the baseline commit; may be `undefined` even when a baseline exists (e.g. CLI without `--base-sha`). */
   baseShortSha: string | undefined;
   compression: CompressionAlgorithm;
   significantChangeBytes: number;
@@ -54,11 +54,15 @@ function routeCell(route: string): string {
   return route.startsWith('_') ? escapeCell(route) : codeSpan(route);
 }
 
-/** The baseline short SHA as a code span, linked to its commit when a repo URL is available. */
-function baseShaSegment(meta: ReportMeta): string {
-  const sha = meta.baseShortSha;
-  const code = codeSpan(sha ?? '');
-  if (!sha || !meta.repoUrl) return code;
+/**
+ * The baseline short SHA as a code span, linked to its commit when a repo URL is available;
+ * `undefined` when the SHA is unknown so callers can drop the segment instead of rendering an empty span.
+ */
+function baseShaSegment(meta: ReportMeta): string | undefined {
+  const sha = meta.baseShortSha?.trim();
+  if (!sha) return undefined;
+  const code = codeSpan(sha);
+  if (!meta.repoUrl) return code;
   const base = escapeCell(meta.repoUrl).replace(/\/+$/, '');
   return `[${code}](${base}/commit/${encodeURIComponent(sha)})`;
 }
@@ -464,8 +468,12 @@ function buildBlocks(
   const blocks: string[] = [`${marker}\n${title}`];
 
   const totalLine = `**${formatBytes(comparison.totalAfter)}** total client JS (${meta.compression})`;
+  const baseSha = baseShaSegment(meta);
   if (comparable) {
-    const lineA = `${totalLine} · **${formatSignedBytes(comparison.totalDeltaBytes ?? 0)} (${formatSignedPercent(comparison.totalDeltaPercent ?? 0)})** vs ${baseShaSegment(meta)} on ${codeSpan(meta.baseBranch)}`;
+    const baseRef = baseSha
+      ? `${baseSha} on ${codeSpan(meta.baseBranch)}`
+      : codeSpan(meta.baseBranch);
+    const lineA = `${totalLine} · **${formatSignedBytes(comparison.totalDeltaBytes ?? 0)} (${formatSignedPercent(comparison.totalDeltaPercent ?? 0)})** vs ${baseRef}`;
 
     const addedRoutes = comparison.routes.filter((r) => r.added);
     const changedSegment =
@@ -480,7 +488,7 @@ function buildBlocks(
     const statusLine =
       comparison.baselineStatus === 'missing'
         ? `No baseline from ${codeSpan(meta.baseBranch)} yet. One is created on the next successful push to ${codeSpan(meta.baseBranch)}. Absolute budgets were still checked.${meta.baselineWarning ? ` (${escapeCell(meta.baselineWarning)})` : ''}`
-        : `Baseline ${baseShaSegment(meta)} was measured with ${comparison.incompatibility?.baseCompression} / collector v${comparison.incompatibility?.baseCollectorVersion} (now ${comparison.incompatibility?.headCompression} / collector v${comparison.incompatibility?.headCollectorVersion}), so deltas are skipped this run. Absolute budgets were still checked.`;
+        : `${baseSha ? `Baseline ${baseSha}` : 'The baseline'} was measured with ${comparison.incompatibility?.baseCompression} / collector v${comparison.incompatibility?.baseCollectorVersion} (now ${comparison.incompatibility?.headCompression} / collector v${comparison.incompatibility?.headCollectorVersion}), so deltas are skipped this run. Absolute budgets were still checked.`;
     blocks.push(`${lineA}\n${statusLine}`);
   }
 

@@ -91,7 +91,7 @@ before opening or updating a PR. If any `src/**` file changes, rebuild
   the PR title becomes the commit release-please reads.
 - Branch names are prefixed `garnertb/`.
 - If you change an `action.yml` input or output, update `src/inputs.ts`, the
-  README's input/output table, and any affected README example in the same
+  README's Usage block (inputs) and Outputs table, and any affected README example in the same
   PR.
 - If you change the report format, update the snapshot tests in
   `src/report/` and the README's sample report.

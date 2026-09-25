@@ -189,4 +189,27 @@ describe('cli end-to-end (subprocess)', () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it('report with --base but no --base-sha omits the SHA instead of an empty code span', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'cli-report-'));
+    const headPath = join(dir, 'head.json');
+    const basePath = join(dir, 'base.json');
+    writeFileSync(headPath, JSON.stringify(bundleReport({})));
+    writeFileSync(basePath, JSON.stringify(bundleReport({ total: 90_000 })));
+    try {
+      const out = execFileSync(
+        TSX_BIN,
+        ['src/cli.ts', 'report', '--head', headPath, '--base', basePath],
+        {
+          encoding: 'utf-8',
+          cwd: process.cwd(),
+          env: { ...process.env, VITEST: undefined },
+        },
+      );
+      expect(out).toContain('vs `main`');
+      expect(out).not.toContain('`  `');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });
