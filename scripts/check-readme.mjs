@@ -52,8 +52,11 @@ function extractUsageInputs(markdown, sectionHeading) {
   const nextSection = lines.findIndex((line, i) => i > start && line.startsWith('## '));
   if (fence === -1 || (nextSection !== -1 && fence > nextSection))
     throw new Error(`README.md's "${sectionHeading}" section has no \`\`\`yaml block.`);
+  const close = lines.findIndex((line, i) => i > fence && line.trim() === '```');
+  if (close === -1 || (nextSection !== -1 && close > nextSection))
+    throw new Error(`README.md's "${sectionHeading}" yaml block has no closing fence.`);
   const names = [];
-  for (let i = fence + 1; i < lines.length && lines[i].trim() !== '```'; i++) {
+  for (let i = fence + 1; i < close; i++) {
     const match = /^ {4}([a-z0-9-]+):/.exec(lines[i]);
     if (match) names.push(match[1]);
   }
