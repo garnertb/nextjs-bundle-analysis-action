@@ -30,6 +30,12 @@ describe('buildActionUrl', () => {
     );
   });
 
+  it('accepts names and refs that merely contain dots', () => {
+    expect(buildActionUrl({ serverUrl: SERVER, repository: 'a.b/c..d', ref: 'v1.2..x/.y' })).toBe(
+      'https://github.com/a.b/c..d/tree/v1.2..x/.y',
+    );
+  });
+
   it('accepts a server URL with a trailing slash', () => {
     expect(buildActionUrl({ serverUrl: 'https://github.com/', repository: REPO, ref: 'v1' })).toBe(
       `https://github.com/${REPO}/tree/v1`,
@@ -48,6 +54,11 @@ describe('buildActionUrl', () => {
     ['a repository without an owner', { serverUrl: SERVER, repository: 'repo', ref: 'v1' }],
     ['a repository with extra segments', { serverUrl: SERVER, repository: 'a/b/c', ref: 'v1' }],
     ['a repository with markup', { serverUrl: SERVER, repository: 'a/b)[x](y', ref: 'v1' }],
+    ['a .. repository owner', { serverUrl: SERVER, repository: '../x', ref: 'v1' }],
+    ['a .. repository name', { serverUrl: SERVER, repository: 'a/..', ref: 'v1' }],
+    ['a . repository segment', { serverUrl: SERVER, repository: './x', ref: 'v1' }],
+    ['a .. ref segment', { serverUrl: SERVER, repository: REPO, ref: '../../evil' }],
+    ['a trailing . ref segment', { serverUrl: SERVER, repository: REPO, ref: 'v1/.' }],
   ])('returns undefined for %s', (_label, params) => {
     expect(buildActionUrl(params)).toBeUndefined();
   });

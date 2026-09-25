@@ -100015,6 +100015,9 @@ function parseInputs(raw) {
 // src/report/action-url.ts
 var GITHUB_ORIGIN = "https://github.com";
 var REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+function hasDotSegment(path12) {
+  return path12.split("/").some((segment) => segment === "." || segment === "..");
+}
 function encodeRefSegment(segment) {
   return encodeURIComponent(segment).replace(
     /[()'!*]/g,
@@ -100025,6 +100028,7 @@ function buildActionUrl(params) {
   const { serverUrl, repository, ref } = params;
   if (!ref || !repository || !serverUrl) return void 0;
   if (!REPOSITORY_PATTERN.test(repository)) return void 0;
+  if (hasDotSegment(repository) || hasDotSegment(ref)) return void 0;
   if (URL.parse(serverUrl)?.origin !== GITHUB_ORIGIN) return void 0;
   const encodedRef = ref.split("/").map(encodeRefSegment).join("/");
   return `${GITHUB_ORIGIN}/${repository}/tree/${encodedRef}`;
