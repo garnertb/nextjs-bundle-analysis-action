@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest';
 import { slugify } from './slug.js';
 
 describe('slugify', () => {

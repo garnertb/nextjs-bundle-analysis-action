@@ -1,7 +1,6 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { detectBundler, detectNextVersion, isSupportedNextVersion } from './environment.js';
 
 describe('detectBundler', () => {

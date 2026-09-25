@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest';
 import { collectBundleReport } from './index.js';
 import { collectPagesRoutes } from './pages.js';
 import { FileSizeCache } from './compression.js';

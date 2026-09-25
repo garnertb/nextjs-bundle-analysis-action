@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest';
 import { evaluateThresholds } from './evaluate.js';
 import type { ThresholdConfig, ThresholdEvaluationInput } from './types.js';
 

@@ -9,7 +9,6 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BundleReport } from './collectors/types.js';
 import type { GithubApi } from './github/types.js';
 

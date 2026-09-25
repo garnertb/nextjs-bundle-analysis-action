@@ -1,4 +1,3 @@
-import { describe, expect, it, vi } from 'vitest';
 import { resolveTrustedCommentAuthors, upsertComment } from './comment.js';
 import type { CommentSummary, GithubApi } from './types.js';
 
