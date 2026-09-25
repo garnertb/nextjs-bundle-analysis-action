@@ -83,6 +83,12 @@ before opening or updating a PR. If any `src/**` file changes, rebuild
 - `src/cli.ts` and everything under `src/collectors`, `src/thresholds`, and
   `src/report` stay free of `@actions/*` imports, so they run outside the
   Actions runtime (tests, the CLI, agent skills).
+- The `main` ruleset requires the `lint-typecheck-test`, `check-dist`,
+  `lint-pr-title`, and `integration` checks. Renaming or removing one of
+  those jobs requires updating the ruleset in the same change, and new jobs
+  in `integration.yml` must be added to the `integration` gate's `needs`.
+- `v*` tags are protected by a tag ruleset and published releases are
+  immutable; only `release.yml` and repo admins can create or move tags.
 
 ## Commit and PR conventions
 

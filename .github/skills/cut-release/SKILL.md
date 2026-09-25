@@ -16,10 +16,13 @@ day-to-day this is "merge the release PR", but verify it first.
    - `CHANGELOG.md`'s new entry looks sensible (no missing/miscategorized
      entries — check `release-please-config.json`'s `changelog-sections`
      if something is hidden that shouldn't be).
-   - `dist/` in the PR is fresh. release-please opens the PR with
-     `GITHUB_TOKEN`, so CI / Check dist / PR title don't run on it
-     automatically. Confirm `check-dist` is green on the `main` commit the
-     PR is based on, or close and reopen the PR to run the checks on it.
+   - The required checks ran on the PR head. release-please opens the PR
+     with `GITHUB_TOKEN`, so no workflows run on it automatically and the
+     `main` ruleset blocks the merge. Close and reopen the PR (as yourself)
+     to run CI, Check dist, Integration, and PR title, and merge only once
+     `lint-typecheck-test`, `check-dist`, `integration`, and
+     `lint-pr-title` are green. Don't use the admin bypass for this:
+     published releases are immutable, so a bad `vX.Y.Z` can't be redone.
    - `package.json`'s `version` matches the PR title.
 
 2. **Merge the release PR** (squash, as usual). This triggers
@@ -43,7 +46,11 @@ day-to-day this is "merge the release PR", but verify it first.
    Both should print the new release commit's SHA.
 
 4. **Rollback:** if a release is bad, don't delete the GitHub Release/tag.
-   Re-point the floating tag(s) at the previous good release commit:
+   Immutable releases are enabled, so `vX.Y.Z` can't be moved, and its tag
+   name can't be reused even if the release is deleted. `v*` tags are also
+   protected by a tag ruleset that only `release.yml` (the GitHub Actions
+   app) and repo admins bypass. As an admin, re-point the floating tag(s)
+   at the previous good release commit:
 
    ```
    git tag -fa v<major> <previous-good-tag> -m "Release v<major>"
