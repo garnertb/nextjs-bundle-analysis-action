@@ -264,6 +264,34 @@ describe('renderReport', () => {
       ].join('\n'),
     );
   });
+
+  it('neutralizes hostile comment delimiters in code-span route and branch names', () => {
+    const hostile = '/evil--!><!--x-->';
+    const headReport = report({
+      total: 300_000,
+      routers: { app: { shared: 100_000 } },
+      routes: [route(hostile, 'app', 200_000, 100_000)],
+    });
+    const baseReport = report({
+      total: 250_000,
+      routers: { app: { shared: 100_000 } },
+      routes: [route(hostile, 'app', 150_000, 50_000)],
+    });
+
+    const comparison = compareBundleReports(headReport, baseReport);
+    const { markdown } = renderReport(comparison, [], {
+      ...meta,
+      baseBranch: 'x--!>y<!--z',
+      thresholds: {},
+      budgetsFilePath: undefined,
+    });
+
+    expect(markdown.startsWith('<!-- nextjs-bundle-analysis:web -->\n')).toBe(true);
+    expect(markdown).toContain('/evil--\u200d!>');
+    expect(markdown.split('<!--')).toHaveLength(2);
+    expect(markdown.split('-->')).toHaveLength(2);
+    expect(markdown).not.toContain('--!>');
+  });
 });
 
 describe('renderReport baseline SHA segment', () => {

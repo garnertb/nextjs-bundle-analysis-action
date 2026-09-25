@@ -74,6 +74,24 @@ describe('codeSpan', () => {
     expect(result).not.toContain('<!--');
     expect(result).not.toContain('-->');
   });
+
+  it('neutralizes the --!> comment terminator', () => {
+    expect(codeSpan('/evil--!>route')).toBe('`/evil--\u200d!>route`');
+  });
+
+  it('neutralizes mixed and adjacent comment delimiters', () => {
+    const result = codeSpan('<!-->--!>--->');
+    expect(result).not.toContain('<!--');
+    expect(result).not.toContain('-->');
+    expect(result).not.toContain('--!>');
+  });
+
+  it('is not bypassable with a --!> spoofed marker', () => {
+    const result = codeSpan('<!<!---- nextjs-bundle-analysis:web ----!>!>');
+    expect(result).not.toContain('<!--');
+    expect(result).not.toContain('-->');
+    expect(result).not.toContain('--!>');
+  });
 });
 
 describe('escapeLinkText', () => {

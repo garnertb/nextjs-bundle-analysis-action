@@ -31,22 +31,15 @@ export function escapeLinkText(text: string): string {
 }
 
 /**
- * Repeatedly breaks any `<!--`/`-->` sequence by inserting a zero-width
- * joiner inside it, until the string is stable. Looping (rather than a
- * single non-overlapping regex pass) closes the same reassembly gap as the
- * old substring-stripping approach would have reopened: replacing an
- * occurrence can otherwise expose a new one from the surrounding text.
- * Unlike `sanitize`, this leaves `<`/`>` as literal characters, since
- * CommonMark doesn't decode HTML entities inside a code span.
+ * Breaks every HTML comment open (`<!--`) and both comment terminators
+ * (`-->` and `--!>`) by inserting a zero-width joiner inside them. One pass
+ * is enough: an inserted joiner can't form a new delimiter, and no delimiter
+ * can overlap another occurrence. Unlike `sanitize`, this leaves `<`/`>` as
+ * literal characters, since CommonMark doesn't decode HTML entities inside a
+ * code span.
  */
 function neutralizeCommentDelimiters(text: string): string {
-  let result = text;
-  let previous: string;
-  do {
-    previous = result;
-    result = result.replace(/<!--/g, '<\u200d!--').replace(/-->/g, '--\u200d>');
-  } while (result !== previous);
-  return result;
+  return text.replace(/<!--/g, '<\u200d!--').replace(/--(!?)>/g, '--\u200d$1>');
 }
 
 /**
@@ -54,7 +47,8 @@ function neutralizeCommentDelimiters(text: string): string {
  * that any backticks already in the text can't prematurely close it (the
  * standard CommonMark technique: use one more backtick than the longest run
  * present, and pad with a space if the text starts/ends with a backtick).
- * Control characters are stripped and comment delimiters neutralized (not
+ * Control characters are stripped and comment delimiters (`<!--`, `-->`,
+ * `--!>`) neutralized (not
  * entity-encoded, since code spans render `<`/`>` literally), and pipes are
  * escaped since it still renders inside a table cell.
  */
