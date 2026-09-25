@@ -100023,15 +100023,11 @@ function encodeRefSegment(segment) {
 }
 function buildActionUrl(params) {
   const { serverUrl, repository, ref } = params;
-  if (!ref || !repository || !serverUrl || !REPOSITORY_PATTERN.test(repository)) return void 0;
-  let origin;
-  try {
-    origin = new URL(serverUrl).origin;
-  } catch {
-    return void 0;
-  }
-  if (origin !== GITHUB_ORIGIN) return void 0;
-  return `${GITHUB_ORIGIN}/${repository}/tree/${ref.split("/").map(encodeRefSegment).join("/")}`;
+  if (!ref || !repository || !serverUrl) return void 0;
+  if (!REPOSITORY_PATTERN.test(repository)) return void 0;
+  if (URL.parse(serverUrl)?.origin !== GITHUB_ORIGIN) return void 0;
+  const encodedRef = ref.split("/").map(encodeRefSegment).join("/");
+  return `${GITHUB_ORIGIN}/${repository}/tree/${encodedRef}`;
 }
 
 // src/format.ts

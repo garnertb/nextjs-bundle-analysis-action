@@ -28,13 +28,9 @@ function encodeRefSegment(segment: string): string {
  */
 export function buildActionUrl(params: ActionUrlParams): string | undefined {
   const { serverUrl, repository, ref } = params;
-  if (!ref || !repository || !serverUrl || !REPOSITORY_PATTERN.test(repository)) return undefined;
-  let origin: string;
-  try {
-    origin = new URL(serverUrl).origin;
-  } catch {
-    return undefined;
-  }
-  if (origin !== GITHUB_ORIGIN) return undefined;
-  return `${GITHUB_ORIGIN}/${repository}/tree/${ref.split('/').map(encodeRefSegment).join('/')}`;
+  if (!ref || !repository || !serverUrl) return undefined;
+  if (!REPOSITORY_PATTERN.test(repository)) return undefined;
+  if (URL.parse(serverUrl)?.origin !== GITHUB_ORIGIN) return undefined;
+  const encodedRef = ref.split('/').map(encodeRefSegment).join('/');
+  return `${GITHUB_ORIGIN}/${repository}/tree/${encodedRef}`;
 }
