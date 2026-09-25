@@ -47,10 +47,9 @@ day-to-day this is "merge the release PR", but verify it first.
 
 4. **Rollback:** if a release is bad, don't delete the GitHub Release/tag.
    Immutable releases are enabled, so `vX.Y.Z` can't be moved, and its tag
-   name can't be reused even if the release is deleted. `v*` tags are also
-   protected by a tag ruleset that only `release.yml` (the GitHub Actions
-   app) and repo admins bypass. As an admin, re-point the floating tag(s)
-   at the previous good release commit:
+   name can't be reused even if the release is deleted. A tag ruleset also
+   blocks deleting `v*` tags for everyone but repo admins. Re-point the
+   floating tag(s) at the previous good release commit:
 
    ```
    git tag -fa v<major> <previous-good-tag> -m "Release v<major>"

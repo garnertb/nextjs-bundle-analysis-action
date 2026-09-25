@@ -87,8 +87,9 @@ before opening or updating a PR. If any `src/**` file changes, rebuild
   `lint-pr-title`, and `integration` checks. Renaming or removing one of
   those jobs requires updating the ruleset in the same change, and new jobs
   in `integration.yml` must be added to the `integration` gate's `needs`.
-- `v*` tags are protected by a tag ruleset and published releases are
-  immutable; only `release.yml` and repo admins can create or move tags.
+- Published releases are immutable (`vX.Y.Z` can't be moved or reused),
+  and a tag ruleset blocks deleting `v*` tags except by repo admins.
+  `release.yml` is the only workflow that may write tags.
 
 ## Commit and PR conventions
 
