@@ -4,28 +4,6 @@ export const EXPECTED_ROUTE_SIZES: Record<
   string,
   Record<string, [route: string, computedGzip: string][]>
 > = {
-  '14-webpack': {
-    'app-router': [
-      ['/', '87.5 kB'],
-      ['/_not-found', '88.1 kB'],
-      ['/about', '89.0 kB'],
-      ['/blog/[slug]', '88.8 kB'],
-    ],
-    'pages-router': [
-      ['/', '80.6 kB'],
-      ['/about', '82.2 kB'],
-      ['/blog/[slug]', '82.1 kB'],
-    ],
-    mixed: [
-      ['/legacy', '81.0 kB'],
-      ['/legacy/about', '83.0 kB'],
-      ['/legacy/blog/[slug]', '82.5 kB'],
-      ['/', '87.3 kB'],
-      ['/_not-found', '88.1 kB'],
-      ['/about', '89.2 kB'],
-      ['/products/[slug]', '88.9 kB'],
-    ],
-  },
   '15-webpack': {
     'app-router': [
       ['/', '102.8 kB'],

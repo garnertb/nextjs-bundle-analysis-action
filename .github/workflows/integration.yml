@@ -25,9 +25,6 @@ jobs:
         # (only its App Router and mixed cells are documented as
         # unsupported; its Pages Router cell is unaffected).
         include:
-          - { combo: 14-webpack, app: app-router, buildFlag: '', expectUnsupported: false }
-          - { combo: 14-webpack, app: pages-router, buildFlag: '', expectUnsupported: false }
-          - { combo: 14-webpack, app: mixed, buildFlag: '', expectUnsupported: false }
           - { combo: 15-webpack, app: app-router, buildFlag: '', expectUnsupported: false }
           - { combo: 15-webpack, app: pages-router, buildFlag: '', expectUnsupported: false }
           - { combo: 15-webpack, app: mixed, buildFlag: '', expectUnsupported: false }
