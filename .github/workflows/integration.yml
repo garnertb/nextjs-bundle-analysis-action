@@ -234,3 +234,23 @@ jobs:
               exit 1
               ;;
           esac
+
+  integration:
+    # Single stable check name for the main branch ruleset; the matrix job
+    # names embed matrix values. Add any new job in this workflow to `needs`.
+    needs: [matrix, baseline-check]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Fail unless every integration job succeeded
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "results: $RESULTS"
+          for r in $RESULTS; do
+            if [[ "$r" != "success" ]]; then
+              echo "::error::An integration job finished with result '$r'."
+              exit 1
+            fi
+          done

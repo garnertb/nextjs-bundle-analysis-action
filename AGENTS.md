@@ -83,6 +83,18 @@ before opening or updating a PR. If any `src/**` file changes, rebuild
 - `src/cli.ts` and everything under `src/collectors`, `src/thresholds`, and
   `src/report` stay free of `@actions/*` imports, so they run outside the
   Actions runtime (tests, the CLI, agent skills).
+- The `main` ruleset requires the `lint-typecheck-test`, `check-dist`,
+  `lint-pr-title`, and `integration` checks, plus CodeQL results with no
+  new errors or high/critical security alerts. Renaming or removing one of
+  those jobs requires updating the ruleset in the same change, and new jobs
+  in `integration.yml` must be added to the `integration` gate's `needs`.
+- CodeQL runs as advanced setup from `.github/workflows/codeql.yml`, with
+  path exclusions (generated `dist/index.js` and `fixtures/next/`) in
+  `.github/codeql/codeql-config.yml`. Keep default setup disabled, or the
+  workflow's uploads are rejected.
+- Published releases are immutable (`vX.Y.Z` can't be moved or reused),
+  and a tag ruleset blocks deleting `v*` tags except by repo admins.
+  `release.yml` is the only workflow that may write tags.
 
 ## Commit and PR conventions
 

@@ -1,0 +1,7 @@
+name: CodeQL config
+
+# Generated JavaScript, not source: dist/index.js is the esbuild bundle of src/
+# (which is analyzed), and fixtures/next/ is committed real `next build` output.
+paths-ignore:
+  - dist/index.js
+  - fixtures/next
