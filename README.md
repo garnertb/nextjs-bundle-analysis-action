@@ -395,10 +395,15 @@ fixtures (one mutated to add a new route, remove another, and grow
 </details>
 
 <sub>Thresholds: route size warn 100 kB / fail 104 kB · route increase warn 5% / fail 20 kB · total increase warn 10 kB<br>
-Next 15.5.4 (webpack) · nextjs-bundle-analysis-action v1.0.0</sub>
+Next 15.5.4 (webpack) · nextjs-bundle-analysis-action [v1.0.0](https://github.com/garnertb/nextjs-bundle-analysis-action/tree/v1.0.0)</sub>
 ```
 
 The `&gt;` you see above is real: every repo-derived string (and even the
 static `>` in "fail > 20 kB") is HTML-entity-escaped outside of code spans
 so a route name can never forge the report's own markup — GitHub renders it
 as a literal `>`.
+
+The footer links the action version to its source at the ref it ran (a
+pinned SHA is shown as its first 7 characters). The link only appears on
+github.com; on GitHub Enterprise Server, or with `uses: ./`, the version is
+plain text.

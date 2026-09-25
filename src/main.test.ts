@@ -9,7 +9,6 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BundleReport } from './collectors/types.js';
 import type { GithubApi } from './github/types.js';
 
@@ -166,6 +165,7 @@ describe('run', () => {
     scratchRoot = mkdtempSync(join(tmpdir(), 'nba-main-'));
     process.env['RUNNER_TEMP'] = scratchRoot;
     process.env['GITHUB_ACTION_REF'] = 'v1.2.3';
+    delete process.env['GITHUB_ACTION_REPOSITORY'];
     delete process.env['GITHUB_WORKFLOW_REF'];
   });
 
@@ -329,5 +329,51 @@ describe('run', () => {
     await run();
     expect(coreState.setFailedCalls).toEqual([]);
     expect(outputValue('status')).toBe('warn');
+  });
+
+  describe('footer action version', () => {
+    const ACTION_REPO = 'garnertb/nextjs-bundle-analysis-action';
+
+    function footer(): string {
+      const markdown = readFileSync(outputValue('report-path') as string, 'utf8');
+      const line = markdown.split('\n').find((l) => l.includes('nextjs-bundle-analysis-action'));
+      if (line === undefined) throw new Error('footer line not found');
+      return line;
+    }
+
+    it("links the action's own repository at its ref, not the workflow's repository", async () => {
+      process.env['GITHUB_ACTION_REPOSITORY'] = ACTION_REPO;
+      await run();
+      expect(footer()).toContain(
+        `nextjs-bundle-analysis-action [v1.2.3](https://github.com/${ACTION_REPO}/tree/v1.2.3)`,
+      );
+      expect(footer()).not.toContain('octocat/demo');
+    });
+
+    it('renders plain text when only the ref is set', async () => {
+      await run();
+      expect(footer()).toMatch(/nextjs-bundle-analysis-action v1\.2\.3<\/sub>$/);
+    });
+
+    it('renders plain text when only the repository is set', async () => {
+      process.env['GITHUB_ACTION_REPOSITORY'] = ACTION_REPO;
+      delete process.env['GITHUB_ACTION_REF'];
+      await run();
+      expect(footer()).toMatch(/nextjs-bundle-analysis-action dev<\/sub>$/);
+    });
+
+    it('renders dev without a link when the ref is empty (uses: ./)', async () => {
+      process.env['GITHUB_ACTION_REPOSITORY'] = '';
+      process.env['GITHUB_ACTION_REF'] = '';
+      await run();
+      expect(footer()).toMatch(/nextjs-bundle-analysis-action dev<\/sub>$/);
+    });
+
+    it('renders plain text on a GHES server', async () => {
+      process.env['GITHUB_ACTION_REPOSITORY'] = ACTION_REPO;
+      contextState.current = { ...contextState.current, serverUrl: 'https://ghe.example.com' };
+      await run();
+      expect(footer()).toMatch(/nextjs-bundle-analysis-action v1\.2\.3<\/sub>$/);
+    });
   });
 });

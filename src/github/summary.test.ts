@@ -1,4 +1,3 @@
-import { describe, expect, it, vi } from 'vitest';
 import { buildJobSummaryUrl, writeJobSummary } from './summary.js';
 
 describe('writeJobSummary', () => {

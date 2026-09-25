@@ -8,6 +8,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { collectBundleReport } from './collectors/index.js';
 import type { BundleReport, CompressionAlgorithm } from './collectors/types.js';
+import { buildActionUrl } from './report/action-url.js';
 import { compareBundleReports, toThresholdInput } from './report/compare.js';
 import { renderReport, type ReportMeta } from './report/render.js';
 import { evaluateThresholds } from './thresholds/evaluate.js';
@@ -113,6 +114,7 @@ function runReport(flags: Flags): void {
   const findings = evaluateThresholds(toThresholdInput(comparison), config);
 
   const name = optionalString(flags, 'name') ?? 'app';
+  const actionRef = optionalString(flags, 'action-version');
   const meta: ReportMeta = {
     name,
     slug: slugify(name),
@@ -124,7 +126,12 @@ function runReport(flags: Flags): void {
     budgetsFilePath: optionalString(flags, 'budgets-file'),
     nextVersion: head.nextVersion,
     bundler: head.bundler,
-    actionVersion: optionalString(flags, 'action-version') ?? 'dev',
+    actionVersion: actionRef ?? 'dev',
+    actionUrl: buildActionUrl({
+      serverUrl: 'https://github.com',
+      repository: optionalString(flags, 'action-repository'),
+      ref: actionRef,
+    }),
     jobSummaryUrl: optionalString(flags, 'job-summary-url'),
     repoUrl: optionalString(flags, 'repo-url'),
     baselineWarning: undefined,

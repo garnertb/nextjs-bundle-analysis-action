@@ -2,7 +2,6 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
 import { buildThresholdConfig, parseFlags } from './cli.js';
 import { COLLECTOR_VERSION, SCHEMA_VERSION, type BundleReport } from './collectors/types.js';
 
@@ -158,6 +157,33 @@ describe('cli end-to-end (subprocess)', () => {
         env: { ...process.env, VITEST: undefined },
       });
       expect(out).toContain('Bundle sizes');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('report links the action version when --action-repository and --action-version are set', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'cli-report-'));
+    const headPath = join(dir, 'head.json');
+    writeFileSync(headPath, JSON.stringify(bundleReport({})));
+    try {
+      const out = execFileSync(
+        TSX_BIN,
+        [
+          'src/cli.ts',
+          'report',
+          '--head',
+          headPath,
+          '--action-repository',
+          'garnertb/nextjs-bundle-analysis-action',
+          '--action-version',
+          'v1.2.3',
+        ],
+        { encoding: 'utf-8', cwd: process.cwd(), env: { ...process.env, VITEST: undefined } },
+      );
+      expect(out).toContain(
+        'nextjs-bundle-analysis-action [v1.2.3](https://github.com/garnertb/nextjs-bundle-analysis-action/tree/v1.2.3)',
+      );
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

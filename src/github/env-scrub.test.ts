@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest';
 import { scrubBuildEnv } from './env-scrub.js';
 
 describe('scrubBuildEnv', () => {
