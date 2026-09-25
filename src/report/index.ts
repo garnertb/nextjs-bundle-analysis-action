@@ -1,3 +1,5 @@
+export { buildActionUrl } from './action-url.js';
+export type { ActionUrlParams } from './action-url.js';
 export { compareBundleReports, toThresholdInput } from './compare.js';
 export type {
   BaselineStatus,

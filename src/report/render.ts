@@ -9,7 +9,7 @@ import {
 import { resolveRouteBudget } from '../thresholds/budgets-file.js';
 import type { Finding, FindingLevel, ThresholdConfig } from '../thresholds/types.js';
 import type { SizeOrPercent } from '../thresholds/size-value.js';
-import { codeSpan, escapeCell } from './escape.js';
+import { codeSpan, escapeCell, escapeLinkText } from './escape.js';
 import type { Comparison, RouteRow } from './compare.js';
 
 export interface ReportMeta {
@@ -26,6 +26,8 @@ export interface ReportMeta {
   nextVersion: string | undefined;
   bundler: string | undefined;
   actionVersion: string;
+  /** Link for the footer's action version; build it with `buildActionUrl`. Rendered as plain text when `undefined`. */
+  actionUrl: string | undefined;
   /** Linked in the truncation notice when the report had to be shortened to fit. */
   jobSummaryUrl: string | undefined;
   /** Repository URL (no trailing slash), used to link the baseline SHA as `<repoUrl>/commit/<sha>`. */
@@ -59,6 +61,18 @@ function baseShaSegment(meta: ReportMeta): string {
   if (!sha || !meta.repoUrl) return code;
   const base = escapeCell(meta.repoUrl).replace(/\/+$/, '');
   return `[${code}](${base}/commit/${encodeURIComponent(sha)})`;
+}
+
+const FULL_SHA = /^[0-9a-f]{40}$/i;
+const SAFE_ACTION_URL = /^https:\/\/github\.com\/[^\s()<>]+$/;
+
+/** The action version, shortened to 7 characters when it's a full SHA, and linked when a safe URL is available. */
+function actionVersionSegment(meta: ReportMeta): string {
+  const version = meta.actionVersion;
+  const label = FULL_SHA.test(version) ? version.slice(0, 7) : version;
+  const url = meta.actionUrl;
+  if (!url || !SAFE_ACTION_URL.test(url)) return escapeCell(label);
+  return `[${escapeLinkText(label)}](${url})`;
 }
 
 function statusIcon(findings: Finding[], baselineStatus: Comparison['baselineStatus']): string {
@@ -122,7 +136,7 @@ function renderFooter(meta: ReportMeta): string {
   const nextSegment = meta.nextVersion
     ? `Next ${escapeCell(meta.nextVersion)}${meta.bundler ? ` (${escapeCell(meta.bundler)})` : ''}`
     : undefined;
-  const line2 = [nextSegment, `nextjs-bundle-analysis-action ${escapeCell(meta.actionVersion)}`]
+  const line2 = [nextSegment, `nextjs-bundle-analysis-action ${actionVersionSegment(meta)}`]
     .filter((s): s is string => s !== undefined)
     .join(' · ');
 

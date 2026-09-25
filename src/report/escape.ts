@@ -20,6 +20,17 @@ export function escapeCell(text: string): string {
 }
 
 /**
+ * Escapes a plain string for use as Markdown link text inside a table cell.
+ * On top of `escapeCell`'s sanitizing, backslash-escapes `\`, `[`, `]`,
+ * backticks, and `|` in a single pass, so the text can't close the link
+ * early, open a code span that swallows the `](url)`, or have its own
+ * escapes re-escaped.
+ */
+export function escapeLinkText(text: string): string {
+  return sanitize(text).replace(/[\\[\]`|]/g, '\\$&');
+}
+
+/**
  * Repeatedly breaks any `<!--`/`-->` sequence by inserting a zero-width
  * joiner inside it, until the string is stable. Looping (rather than a
  * single non-overlapping regex pass) closes the same reassembly gap as the
