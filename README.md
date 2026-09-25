@@ -32,6 +32,109 @@ baseline, and on `pull_request`, which produces the comparison. On the very
 first run there's no baseline yet; the report says so and still checks
 absolute budgets (see [Sample report](#sample-report) below).
 
+## Usage
+
+Every input is optional. Size inputs take a number with a `B` or `kB`
+unit, e.g. `512B` or `250kB` (no conversion needed; `kB` is decimal, 1 kB =
+1000 B, matching `next build`'s output). `*-increase` inputs also accept a
+percent (`5%`). Leaving a `warn-*`/`fail-*` input unset disables that check.
+
+```yaml
+- uses: garnertb/nextjs-bundle-analysis-action@v1
+  with:
+    # Directory containing the Next.js app, relative to the repository root.
+    # Default: .
+    working-directory: ''
+
+    # Build output directory, relative to `working-directory`. Set this if your
+    # next.config sets a custom `distDir`.
+    # Default: .next
+    next-dir: ''
+
+    # Command to build the app before measuring. Runs in `working-directory`
+    # through a shell with a scrubbed environment, and refuses to run on
+    # `pull_request_target` and `workflow_run` events. Leave unset if an
+    # earlier step already builds the app. See "build-command security".
+    build-command: ''
+
+    # Display label for this app, shown in the report. Slugged and used in the
+    # artifact name, the PR comment's hidden marker, and output file paths, so
+    # set a distinct value per app when measuring several apps in one repo.
+    # Default: the `name` field of `working-directory`'s package.json
+    name: ''
+
+    # Branch whose push runs provide the baseline.
+    # Default: the repository's default branch
+    base-branch: ''
+
+    # Workflow file to search for the baseline artifact. The baseline only ever
+    # comes from a successful `push` run of this workflow in this repository.
+    # Default: the current workflow file
+    baseline-workflow: ''
+
+    # Name of the uploaded sizes artifact, and of the baseline artifact to
+    # download.
+    # Default: next-bundle-sizes-<slug of name>
+    artifact-name: ''
+
+    # Whether to upload the sizes JSON as a workflow artifact. Push runs on the
+    # base branch must upload it for later pull requests to have a baseline.
+    # Default: true
+    upload-artifact: ''
+
+    # Token used to download baseline artifacts and upsert the PR comment.
+    # Needs `actions: read` and `pull-requests: write`; a missing scope
+    # downgrades that feature to a warning rather than failing the run.
+    # Default: ${{ github.token }}
+    github-token: ${{ github.token }}
+
+    # Whether to create or update a PR comment with the report.
+    # Default: true
+    comment: ''
+
+    # Login to trust as the author of a prior comment to update, in addition to
+    # `github-actions[bot]`. Set this when `github-token` is a GitHub App
+    # installation token (which comments as `<app-slug>[bot]`), since that
+    # can't be detected automatically via `GET /user`.
+    comment-author: ''
+
+    # Whether to write the report to the job summary.
+    # Default: true
+    job-summary: ''
+
+    # Compression used to measure chunk sizes: `gzip`, `brotli`, or `none`.
+    # Changing it makes an existing baseline `incompatible` (no deltas).
+    # Default: gzip
+    compression: ''
+
+    # Minimum first-load delta for a route to be listed under "Changed routes".
+    # Routes with a route-increase finding are listed regardless.
+    # Default: 512B
+    significant-change: ''
+
+    # Warn/fail if a route's first-load size exceeds this size (e.g. `250kB`).
+    warn-route-size: ''
+    fail-route-size: ''
+
+    # Warn/fail if a route's first-load size grows by more than this size or
+    # percent versus the baseline (e.g. `20kB` or `5%`).
+    warn-route-increase: ''
+    fail-route-increase: ''
+
+    # Warn/fail if total client JS (the union of every route's files) grows by
+    # more than this size or percent versus the baseline.
+    warn-total-increase: ''
+    fail-total-increase: ''
+
+    # Warn/fail if a router's shared chunk size exceeds this size.
+    warn-shared-size: ''
+    fail-shared-size: ''
+
+    # Path, relative to the repository root, to a JSON file of per-route glob
+    # overrides for the `warn-*`/`fail-*` inputs. See "Budgets file reference".
+    budgets-file: ''
+```
+
 ## Usage variants
 
 ### A. Minimal, caller builds
@@ -48,7 +151,7 @@ action runs, and it just measures `.next`.
 - run: pnpm install --frozen-lockfile
 - uses: garnertb/nextjs-bundle-analysis-action@v1
   env:
-    KNOCK_API_KEY: ${{ secrets.KNOCK_API_KEY }} # passed to the build
+    MY_BUILD_SECRET: ${{ secrets.MY_BUILD_SECRET }} # step env is passed to the build
   with:
     name: web
     working-directory: apps/web
@@ -112,34 +215,6 @@ permissions:
 baseline comparison or the PR comment (e.g. a `push`-only, budgets-only
 setup) — a missing scope just downgrades that feature to a warning, it
 doesn't fail the run.
-
-## Inputs
-
-| Input                 | Default                    | Description                                                                                                                                                                                                                                                   |
-| --------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `working-directory`   | `.`                        | Directory containing the Next.js app.                                                                                                                                                                                                                         |
-| `next-dir`            | `.next`                    | Build output directory, relative to `working-directory` (honors a custom `distDir`).                                                                                                                                                                          |
-| `build-command`       | —                          | Optional command to build the app before measuring, run in `working-directory` with a scrubbed environment.                                                                                                                                                   |
-| `name`                | package.json name          | Display label for this app. Defaults to the `package.json` name. Slugged for the artifact name, comment marker, and file paths.                                                                                                                               |
-| `base-branch`         | repo default branch        | Branch to compare against.                                                                                                                                                                                                                                    |
-| `baseline-workflow`   | current workflow file      | Workflow file to search for the baseline artifact.                                                                                                                                                                                                            |
-| `artifact-name`       | `next-bundle-sizes-<slug>` | Name of the sizes artifact.                                                                                                                                                                                                                                   |
-| `upload-artifact`     | `true`                     | Whether to upload the sizes JSON as a workflow artifact.                                                                                                                                                                                                      |
-| `github-token`        | `${{ github.token }}`      | Token used to download baseline artifacts and upsert the PR comment.                                                                                                                                                                                          |
-| `comment`             | `true`                     | Whether to upsert a PR comment with the report.                                                                                                                                                                                                               |
-| `comment-author`      | —                          | Login to trust as the author of a prior comment to update, in addition to `github-actions[bot]`. Set this when `github-token` is a custom GitHub App installation token (posted as `<app-slug>[bot]`), which can't be detected automatically via `GET /user`. |
-| `job-summary`         | `true`                     | Whether to write the report to the job summary.                                                                                                                                                                                                               |
-| `compression`         | `gzip`                     | Compression used to measure chunk sizes: `gzip`, `brotli`, or `none`.                                                                                                                                                                                         |
-| `significant-change`  | `512B`                     | Minimum delta (e.g. `512B`) for a route to be listed as changed.                                                                                                                                                                                              |
-| `warn-route-size`     | —                          | Warn if a route's absolute first-load size exceeds this budget (e.g. `250kB`).                                                                                                                                                                                |
-| `fail-route-size`     | —                          | Fail if a route's absolute first-load size exceeds this budget (e.g. `400kB`).                                                                                                                                                                                |
-| `warn-route-increase` | —                          | Warn if a route's first-load size increases by more than this amount or percent (e.g. `20kB` or `5%`).                                                                                                                                                        |
-| `fail-route-increase` | —                          | Fail if a route's first-load size increases by more than this amount or percent.                                                                                                                                                                              |
-| `warn-total-increase` | —                          | Warn if the total client JS size increases by more than this amount or percent.                                                                                                                                                                               |
-| `fail-total-increase` | —                          | Fail if the total client JS size increases by more than this amount or percent.                                                                                                                                                                               |
-| `warn-shared-size`    | —                          | Warn if a router's shared chunk size exceeds this budget.                                                                                                                                                                                                     |
-| `fail-shared-size`    | —                          | Fail if a router's shared chunk size exceeds this budget.                                                                                                                                                                                                     |
-| `budgets-file`        | —                          | Path to a JSON file with per-route glob threshold overrides.                                                                                                                                                                                                  |
 
 ## Outputs
 

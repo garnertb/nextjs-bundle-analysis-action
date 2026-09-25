@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Asserts README.md's input/output tables list exactly the same names as
- * action.yml. Run via `pnpm run check-readme`. Doesn't check descriptions
+ * Asserts README.md's Usage block and Outputs table list exactly the same
+ * input/output names as action.yml. Run via `pnpm run check-readme`. Doesn't check descriptions
  * or defaults — those are free text and would make this too brittle.
  */
 import { readFileSync } from 'node:fs';
@@ -40,6 +40,29 @@ function extractTableNames(markdown, sectionHeading) {
   return names;
 }
 
+/**
+ * Extracts the input names from the first ```yaml block under the Usage
+ * heading: the `with:` keys at 4-space indent.
+ */
+function extractUsageInputs(markdown, sectionHeading) {
+  const lines = markdown.split('\n');
+  const start = lines.findIndex((line) => line.trim() === sectionHeading);
+  if (start === -1) throw new Error(`README.md is missing a "${sectionHeading}" section.`);
+  const fence = lines.findIndex((line, i) => i > start && line.trim() === '```yaml');
+  const nextSection = lines.findIndex((line, i) => i > start && line.startsWith('## '));
+  if (fence === -1 || (nextSection !== -1 && fence > nextSection))
+    throw new Error(`README.md's "${sectionHeading}" section has no \`\`\`yaml block.`);
+  const close = lines.findIndex((line, i) => i > fence && line.trim() === '```');
+  if (close === -1 || (nextSection !== -1 && close > nextSection))
+    throw new Error(`README.md's "${sectionHeading}" yaml block has no closing fence.`);
+  const names = [];
+  for (let i = fence + 1; i < close; i++) {
+    const match = /^ {4}([a-z0-9-]+):/.exec(lines[i]);
+    if (match) names.push(match[1]);
+  }
+  return names;
+}
+
 function diff(label, expected, actual) {
   const missing = expected.filter((name) => !actual.includes(name));
   const extra = actual.filter((name) => !expected.includes(name));
@@ -56,7 +79,7 @@ function main() {
 
   const expectedInputs = extractYamlSectionKeys(actionYml, 'inputs');
   const expectedOutputs = extractYamlSectionKeys(actionYml, 'outputs');
-  const actualInputs = extractTableNames(readme, '## Inputs');
+  const actualInputs = extractUsageInputs(readme, '## Usage');
   const actualOutputs = extractTableNames(readme, '## Outputs');
 
   const problems = [
