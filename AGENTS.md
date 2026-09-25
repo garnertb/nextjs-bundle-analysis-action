@@ -84,7 +84,8 @@ before opening or updating a PR. If any `src/**` file changes, rebuild
   `src/report` stay free of `@actions/*` imports, so they run outside the
   Actions runtime (tests, the CLI, agent skills).
 - The `main` ruleset requires the `lint-typecheck-test`, `check-dist`,
-  `lint-pr-title`, and `integration` checks. Renaming or removing one of
+  `lint-pr-title`, and `integration` checks, plus CodeQL results with no
+  new errors or high/critical security alerts. Renaming or removing one of
   those jobs requires updating the ruleset in the same change, and new jobs
   in `integration.yml` must be added to the `integration` gate's `needs`.
 - Published releases are immutable (`vX.Y.Z` can't be moved or reused),
