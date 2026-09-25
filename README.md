@@ -333,9 +333,11 @@ A non-zero exit from `build-command` fails the action.
 - uses: garnertb/nextjs-bundle-analysis-action@<commit-sha> # supply-chain pinned
 ```
 
-`v1` and `v1.<minor>` are floating tags that release-please moves to the
-latest matching release automatically; pin to a full commit SHA if your
-policy requires immutable action references.
+`v1` and `v1.<minor>` are floating tags that the release workflow moves to
+the latest matching release automatically. Exact `v1.2.3` tags are published
+as [immutable releases](https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases),
+so they can't be moved or deleted and come with a release attestation. Pin to
+a full commit SHA if your policy requires SHA-pinned action references.
 
 ## Sample report
 

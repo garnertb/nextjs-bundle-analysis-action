@@ -27,3 +27,9 @@ applyTo: '.github/workflows/**,action.yml'
   `fixtures/next/<combo>/<app>/` rather than letting pnpm re-resolve
   versions, and should cache the pnpm store (`cache: pnpm` plus a
   `cache-dependency-path` covering both the root and fixture lockfiles).
+- Job names `lint-typecheck-test`, `check-dist`, `lint-pr-title`, and
+  `integration` are required status checks in the `main` ruleset. Don't
+  rename or remove them without updating the ruleset, and add any new job in
+  `integration.yml` to the `integration` gate job's `needs`. Required
+  workflows must not use `paths`/`paths-ignore` filters, or PRs that skip
+  them can never merge.
