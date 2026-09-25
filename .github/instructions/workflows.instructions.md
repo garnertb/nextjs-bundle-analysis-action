@@ -33,3 +33,10 @@ applyTo: '.github/workflows/**,action.yml'
   `integration.yml` to the `integration` gate job's `needs`. Required
   workflows must not use `paths`/`paths-ignore` filters, or PRs that skip
   them can never merge.
+- CodeQL is advanced setup (`codeql.yml`), because default setup can only
+  take a config file via an org-level repository property and this repo is
+  user-owned. Default setup must stay disabled. Add analysis exclusions to
+  `.github/codeql/codeql-config.yml`, not as workflow `paths` filters. The
+  `main` ruleset's code scanning rule needs results on every PR, so keep the
+  `/language:<lang>` categories stable. Fork PRs need workflow approval
+  before CodeQL results appear.
