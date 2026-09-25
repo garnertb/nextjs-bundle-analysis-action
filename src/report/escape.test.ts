@@ -79,6 +79,10 @@ describe('codeSpan', () => {
     expect(codeSpan('/evil--!>route')).toBe('`/evil--\u200d!>route`');
   });
 
+  it('neutralizes an open and close that overlap', () => {
+    expect(codeSpan('<!-->')).toBe('`<\u200d!--\u200d>`');
+  });
+
   it('neutralizes mixed and adjacent comment delimiters', () => {
     const result = codeSpan('<!-->--!>--->');
     expect(result).not.toContain('<!--');

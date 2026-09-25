@@ -33,8 +33,10 @@ export function escapeLinkText(text: string): string {
 /**
  * Breaks every HTML comment open (`<!--`) and both comment terminators
  * (`-->` and `--!>`) by inserting a zero-width joiner inside them. One pass
- * is enough: an inserted joiner can't form a new delimiter, and no delimiter
- * can overlap another occurrence. Unlike `sanitize`, this leaves `<`/`>` as
+ * is enough: an inserted joiner can't form a new delimiter, and each joiner
+ * lands in a spot (after `<`, or after `--`) that leaves the other pattern's
+ * `--` intact, so an overlapping open and close such as `<!-->` are both
+ * broken regardless of order. Unlike `sanitize`, this leaves `<`/`>` as
  * literal characters, since CommonMark doesn't decode HTML entities inside a
  * code span.
  */
