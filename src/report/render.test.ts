@@ -264,6 +264,71 @@ describe('renderReport', () => {
   });
 });
 
+describe('renderReport baseline SHA segment', () => {
+  const routes = [route('/', 'app', 100_000, 50_000)];
+  const head = report({ total: 100_000, routers: { app: { shared: 50_000 } }, routes });
+  const found = compareBundleReports(
+    head,
+    report({ total: 90_000, routers: { app: { shared: 50_000 } }, routes }),
+  );
+  const incompatible = compareBundleReports(
+    head,
+    report({
+      total: 90_000,
+      routers: { app: { shared: 50_000 } },
+      routes,
+      fingerprint: {
+        schemaVersion: SCHEMA_VERSION,
+        collectorVersion: COLLECTOR_VERSION,
+        compression: 'brotli',
+      },
+    }),
+  );
+  const baseMeta: ReportMeta = { ...meta, thresholds: {}, budgetsFilePath: undefined };
+
+  function headerLine(markdown: string): string {
+    return markdown.split('\n')[3] ?? '';
+  }
+
+  it.each([
+    ['undefined', undefined],
+    ['whitespace-only', '   '],
+  ])('drops the SHA from the found header when it is %s', (_label, baseShortSha) => {
+    const { markdown } = renderReport(found, [], { ...baseMeta, baseShortSha });
+    expect(headerLine(markdown)).toBe(
+      '**100.0 kB** total client JS (gzip) · **+10.0 kB (+11.1%)** vs `main`',
+    );
+    expect(markdown).not.toContain('`  `');
+  });
+
+  it('drops the SHA from the incompatible status line when it is undefined', () => {
+    const { markdown } = renderReport(incompatible, [], { ...baseMeta, baseShortSha: undefined });
+    expect(markdown).toContain(
+      '\nThe baseline was measured with brotli / collector v1 (now gzip / collector v1), so deltas are skipped this run.',
+    );
+    expect(markdown).not.toContain('`  `');
+  });
+
+  it('links the SHA to its commit when a repo URL is set', () => {
+    const repoMeta = { ...baseMeta, repoUrl: 'https://github.com/o/r' };
+    expect(renderReport(found, [], repoMeta).markdown).toContain(
+      'vs [`a1b2c3d`](https://github.com/o/r/commit/a1b2c3d) on `main`',
+    );
+    expect(renderReport(incompatible, [], repoMeta).markdown).toContain(
+      'Baseline [`a1b2c3d`](https://github.com/o/r/commit/a1b2c3d) was measured with',
+    );
+  });
+
+  it('emits no commit link when a repo URL is set but the SHA is unknown', () => {
+    const repoMeta = { ...baseMeta, repoUrl: 'https://github.com/o/r', baseShortSha: undefined };
+    for (const comparison of [found, incompatible]) {
+      const { markdown } = renderReport(comparison, [], repoMeta);
+      expect(markdown).not.toContain('/commit/');
+      expect(markdown).not.toContain('`  `');
+    }
+  });
+});
+
 describe('renderReport truncation', () => {
   it('drops the All routes section, then caps changed routes, to fit the size budget', () => {
     const headRoutes: RouteMeasurement[] = [];
