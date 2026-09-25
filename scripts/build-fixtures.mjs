@@ -19,7 +19,6 @@ const scratchRoot = process.env.NBA_FIXTURE_SCRATCH || path.join(repoRoot, '.fix
 const summaryPath = path.join(scratchRoot, 'summary.json');
 
 const combos = [
-  { id: '14-webpack', nextVersion: '14.2.35', bundler: 'webpack', buildArgs: ['next', 'build'] },
   { id: '15-webpack', nextVersion: '15.5.25', bundler: 'webpack', buildArgs: ['next', 'build'] },
   {
     id: '15-turbopack',

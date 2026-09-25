@@ -1,4 +1,12 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -181,6 +189,27 @@ describe('run', () => {
     const sizes = JSON.parse(readFileSync(sizesPath, 'utf8')) as BundleReport;
     expect(sizes.routes.length).toBeGreaterThan(0);
     expect(readFileSync(reportPath, 'utf8')).toContain('Bundle sizes');
+  });
+
+  it('fails without publishing anything when the resolved Next version is below 15', async () => {
+    const appDir = join(scratchRoot, 'app');
+    cpSync(FIXTURE_NEXT_DIR, appDir, { recursive: true });
+    mkdirSync(join(appDir, 'node_modules', 'next'), { recursive: true });
+    writeFileSync(
+      join(appDir, 'node_modules', 'next', 'package.json'),
+      JSON.stringify({ version: '14.2.35' }),
+    );
+    coreState.inputs = defaultInputs({ 'working-directory': appDir });
+
+    await run();
+
+    expect(coreState.setFailedCalls).toEqual([
+      'Next.js 14.2.35 is not supported: this action requires Next.js 15 or newer. ' +
+        'See the support matrix in the README.',
+    ]);
+    expect(coreState.setOutputCalls).toEqual([]);
+    expect(artifactState.uploadArtifact).not.toHaveBeenCalled();
+    expect(coreState.summaryWrite).not.toHaveBeenCalled();
   });
 
   it('finds a baseline, compares it, and upserts a comment on a pull_request event', async () => {

@@ -99258,6 +99258,14 @@ var UnsupportedAppRouterError = class extends Error {
     this.name = "UnsupportedAppRouterError";
   }
 };
+var UnsupportedNextVersionError = class extends Error {
+  constructor(version3, minimumMajor) {
+    super(
+      `Next.js ${version3} is not supported: this action requires Next.js ${minimumMajor} or newer. See the support matrix in the README.`
+    );
+    this.name = "UnsupportedNextVersionError";
+  }
+};
 var NoRoutesFoundError = class extends Error {
   constructor(nextDir, reason) {
     super(
@@ -99287,8 +99295,8 @@ function detectBundler(nextDir) {
   if (fs10.existsSync(path10.join(nextDir, "server", "webpack-runtime.js"))) return "webpack";
   return void 0;
 }
-function detectNextVersion(workingDirectory) {
-  const packageJsonPath = path10.join(workingDirectory, "node_modules", "next", "package.json");
+function readNextVersionAt(directory) {
+  const packageJsonPath = path10.join(directory, "node_modules", "next", "package.json");
   if (!fs10.existsSync(packageJsonPath)) return void 0;
   try {
     const parsed = JSON.parse(fs10.readFileSync(packageJsonPath, "utf8"));
@@ -99296,6 +99304,23 @@ function detectNextVersion(workingDirectory) {
   } catch {
     return void 0;
   }
+}
+function detectNextVersion(appDirectory, fallbackDirectory) {
+  let current = path10.resolve(appDirectory);
+  for (; ; ) {
+    const version3 = readNextVersionAt(current);
+    if (version3 !== void 0) return version3;
+    const parent = path10.dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+  return fallbackDirectory === void 0 ? void 0 : readNextVersionAt(fallbackDirectory);
+}
+var MIN_SUPPORTED_NEXT_MAJOR = 15;
+function isSupportedNextVersion(version3) {
+  const match = version3 === void 0 ? null : /^v?(\d+)\./.exec(version3.trim());
+  if (!match) return void 0;
+  return Number(match[1]) >= MIN_SUPPORTED_NEXT_MAJOR;
 }
 
 // src/collectors/types.ts
@@ -99327,6 +99352,10 @@ function buildRouterMeasurements(filesByRoute, router, sizeCache, explicitShared
 function collectBundleReport(nextDir, options) {
   if (!fs11.existsSync(nextDir)) {
     throw new NoRoutesFoundError(nextDir, "the directory does not exist.");
+  }
+  const nextVersion = detectNextVersion(path11.dirname(nextDir), options.workingDirectory);
+  if (nextVersion !== void 0 && isSupportedNextVersion(nextVersion) === false) {
+    throw new UnsupportedNextVersionError(nextVersion, MIN_SUPPORTED_NEXT_MAJOR);
   }
   const sizeCache = new FileSizeCache(nextDir, options.compression);
   const rawPages = collectPagesRoutes(nextDir);
@@ -99365,7 +99394,7 @@ function collectBundleReport(nextDir, options) {
       collectorVersion: COLLECTOR_VERSION,
       compression: options.compression
     },
-    nextVersion: detectNextVersion(options.workingDirectory ?? path11.dirname(nextDir)),
+    nextVersion,
     bundler: detectBundler(nextDir),
     total: sizeCache.sizeOfSet(allFiles),
     routers,
