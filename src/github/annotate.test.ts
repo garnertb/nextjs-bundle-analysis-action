@@ -1,4 +1,3 @@
-import { describe, expect, it, vi } from 'vitest';
 import { annotateFindings } from './annotate.js';
 import type { Finding } from '../thresholds/types.js';
 

@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest';
 import { parseByteSize, parsePercent, parseSizeOrPercent } from './size-value.js';
 
 describe('parseByteSize', () => {

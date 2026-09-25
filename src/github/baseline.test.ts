@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest';
 import type { BundleReport } from '../collectors/types.js';
 import {
   buildUnreadableBaselineComparison,

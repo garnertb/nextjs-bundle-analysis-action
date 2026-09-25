@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest';
 import { buildActionUrl } from './action-url.js';
 
 const REPO = 'garnertb/nextjs-bundle-analysis-action';

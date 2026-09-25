@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest';
 import type { BundleReport, RouteMeasurement } from '../collectors/types.js';
 import { COLLECTOR_VERSION, SCHEMA_VERSION } from '../collectors/types.js';
 import { compareBundleReports, toThresholdInput } from './compare.js';

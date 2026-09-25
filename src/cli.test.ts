@@ -2,7 +2,6 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
 import { buildThresholdConfig, parseFlags } from './cli.js';
 import { COLLECTOR_VERSION, SCHEMA_VERSION, type BundleReport } from './collectors/types.js';
 

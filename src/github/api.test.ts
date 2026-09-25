@@ -1,4 +1,3 @@
-import { describe, expect, it, vi } from 'vitest';
 import { createGithubApi, type Octokit } from './api.js';
 
 function fakeOctokit(overrides: Record<string, unknown> = {}): Octokit {

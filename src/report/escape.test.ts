@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest';
 import { codeSpan, escapeCell, escapeLinkText } from './escape.js';
 
 describe('escapeCell', () => {
