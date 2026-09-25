@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
-import { collectBundleReport } from './index.js';
+import { UnsupportedNextVersionError, collectBundleReport } from './index.js';
 
 describe('collectBundleReport', () => {
   let dir: string;
@@ -46,15 +46,86 @@ describe('collectBundleReport', () => {
     expect(report.nextVersion).toBe('15.5.4');
   });
 
-  it('resolves nextVersion from an explicit workingDirectory override', () => {
+  it('falls back to an explicit workingDirectory when nothing resolves from nextDir', () => {
     const nextDir = path.join(dir, 'apps/web/.next');
     const appDir = path.join(dir, 'elsewhere');
     writeFile('apps/web/.next/build-manifest.json', JSON.stringify({ pages: { '/a': ['a.js'] } }));
     writeFile('apps/web/.next/a.js', 'x');
-    writeFile('elsewhere/node_modules/next/package.json', JSON.stringify({ version: '14.2.0' }));
+    writeFile('elsewhere/node_modules/next/package.json', JSON.stringify({ version: '15.2.0' }));
 
     const report = collectBundleReport(nextDir, { compression: 'none', workingDirectory: appDir });
-    expect(report.nextVersion).toBe('14.2.0');
+    expect(report.nextVersion).toBe('15.2.0');
+  });
+
+  it('resolves a Next install hoisted to a workspace ancestor', () => {
+    const nextDir = path.join(dir, 'apps/web/.next');
+    writeFile('apps/web/.next/build-manifest.json', JSON.stringify({ pages: { '/a': ['a.js'] } }));
+    writeFile('apps/web/.next/a.js', 'x');
+    writeFile('node_modules/next/package.json', JSON.stringify({ version: '16.3.6' }));
+
+    const report = collectBundleReport(nextDir, { compression: 'none', workingDirectory: dir });
+    expect(report.nextVersion).toBe('16.3.6');
+  });
+
+  it('prefers the app-local Next install over a conflicting root one', () => {
+    const nextDir = path.join(dir, 'apps/web/.next');
+    writeFile('apps/web/.next/build-manifest.json', JSON.stringify({ pages: { '/a': ['a.js'] } }));
+    writeFile('apps/web/.next/a.js', 'x');
+    writeFile('node_modules/next/package.json', JSON.stringify({ version: '14.2.35' }));
+    writeFile('apps/web/node_modules/next/package.json', JSON.stringify({ version: '15.5.26' }));
+
+    const report = collectBundleReport(nextDir, { compression: 'none', workingDirectory: dir });
+    expect(report.nextVersion).toBe('15.5.26');
+  });
+
+  it('resolves a pnpm-style symlinked Next install', () => {
+    const nextDir = path.join(dir, '.next');
+    writeFile('.next/build-manifest.json', JSON.stringify({ pages: { '/a': ['a.js'] } }));
+    writeFile('.next/a.js', 'x');
+    writeFile(
+      'node_modules/.pnpm/next@15.5.26/node_modules/next/package.json',
+      JSON.stringify({ version: '15.5.26' }),
+    );
+    fs.symlinkSync(
+      path.join(dir, 'node_modules/.pnpm/next@15.5.26/node_modules/next'),
+      path.join(dir, 'node_modules/next'),
+      'dir',
+    );
+
+    expect(collectBundleReport(nextDir, { compression: 'none' }).nextVersion).toBe('15.5.26');
+  });
+
+  it.each(['14.2.35', '13.5.11'])('rejects Next %s as unsupported', (version) => {
+    const nextDir = path.join(dir, '.next');
+    writeFile('.next/build-manifest.json', JSON.stringify({ pages: { '/a': ['a.js'] } }));
+    writeFile('.next/a.js', 'x');
+    writeFile('node_modules/next/package.json', JSON.stringify({ version }));
+
+    expect(() => collectBundleReport(nextDir, { compression: 'none' })).toThrow(
+      UnsupportedNextVersionError,
+    );
+    expect(() => collectBundleReport(nextDir, { compression: 'none' })).toThrow(
+      `Next.js ${version} is not supported: this action requires Next.js 15 or newer.`,
+    );
+  });
+
+  it.each(['15.0.0', '16.0.0-canary.42'])('accepts Next %s', (version) => {
+    const nextDir = path.join(dir, '.next');
+    writeFile('.next/build-manifest.json', JSON.stringify({ pages: { '/a': ['a.js'] } }));
+    writeFile('.next/a.js', 'x');
+    writeFile('node_modules/next/package.json', JSON.stringify({ version }));
+
+    expect(collectBundleReport(nextDir, { compression: 'none' }).nextVersion).toBe(version);
+  });
+
+  it('does not gate collection when the Next version is unresolvable', () => {
+    const nextDir = path.join(dir, '.next');
+    writeFile('.next/build-manifest.json', JSON.stringify({ pages: { '/a': ['a.js'] } }));
+    writeFile('.next/a.js', 'x');
+
+    const report = collectBundleReport(nextDir, { compression: 'none' });
+    expect(report.nextVersion).toBeUndefined();
+    expect(report.routes).toHaveLength(1);
   });
 
   it("throws when next-dir doesn't exist, instead of silently reporting zero routes", () => {

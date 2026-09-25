@@ -4,14 +4,22 @@ import { FileSizeCache } from './compression.js';
 import { collectPagesRoutes, collectPagesSharedFiles } from './pages.js';
 import { collectAppRoutes } from './detect.js';
 import { disambiguateAcrossRouters } from './route-path.js';
-import { detectBundler, detectNextVersion } from './environment.js';
+import {
+  MIN_SUPPORTED_NEXT_MAJOR,
+  detectBundler,
+  detectNextVersion,
+  isSupportedNextVersion,
+} from './environment.js';
 import { COLLECTOR_VERSION, SCHEMA_VERSION } from './types.js';
-import { NoRoutesFoundError } from './unsupported-error.js';
+import { NoRoutesFoundError, UnsupportedNextVersionError } from './unsupported-error.js';
 import type { BundleReport, CompressionAlgorithm, RouteMeasurement, RouterName } from './types.js';
 
 export interface CollectOptions {
   compression: CompressionAlgorithm;
-  /** Defaults to `nextDir`'s parent directory. */
+  /**
+   * Fallback for resolving the installed `next` version when no `node_modules/next` is found
+   * walking up from `nextDir`'s parent directory.
+   */
   workingDirectory?: string;
 }
 
@@ -50,11 +58,18 @@ function buildRouterMeasurements(
  * Collects per-route client JS measurements from a built `.next` directory.
  * Auto-detects Pages Router and App Router manifest shapes; throws
  * {@link UnsupportedAppRouterError} if App Router routes exist but no
- * reliable per-route chunk manifest could be found (see docs/manifests.md).
+ * reliable per-route chunk manifest could be found (see docs/manifests.md), and
+ * {@link UnsupportedNextVersionError} if the resolved Next version is older than
+ * {@link MIN_SUPPORTED_NEXT_MAJOR}.
  */
 export function collectBundleReport(nextDir: string, options: CollectOptions): BundleReport {
   if (!fs.existsSync(nextDir)) {
     throw new NoRoutesFoundError(nextDir, 'the directory does not exist.');
+  }
+
+  const nextVersion = detectNextVersion(path.dirname(nextDir), options.workingDirectory);
+  if (nextVersion !== undefined && isSupportedNextVersion(nextVersion) === false) {
+    throw new UnsupportedNextVersionError(nextVersion, MIN_SUPPORTED_NEXT_MAJOR);
   }
 
   const sizeCache = new FileSizeCache(nextDir, options.compression);
@@ -88,7 +103,7 @@ export function collectBundleReport(nextDir: string, options: CollectOptions): B
   if (appFiles) {
     // App Router `shared` is the intersection across every route in `appFiles`, unlike Pages
     // (which has an explicit `/_app` chunk list). This only degenerates to `own: 0` for a
-    // single-route app, and every supported combo (14/15/16 webpack and Turbopack) always
+    // single-route app, and every supported combo (15/16 webpack and Turbopack) always
     // renders an implicit `/_not-found` route alongside any real route, per docs/manifests.md.
     const { routes: appRoutes, sharedBytes } = buildRouterMeasurements(appFiles, 'app', sizeCache);
     routers.app = { shared: sharedBytes };
@@ -104,7 +119,7 @@ export function collectBundleReport(nextDir: string, options: CollectOptions): B
       collectorVersion: COLLECTOR_VERSION,
       compression: options.compression,
     },
-    nextVersion: detectNextVersion(options.workingDirectory ?? path.dirname(nextDir)),
+    nextVersion,
     bundler: detectBundler(nextDir),
     total: sizeCache.sizeOfSet(allFiles),
     routers,
@@ -113,5 +128,10 @@ export function collectBundleReport(nextDir: string, options: CollectOptions): B
 }
 
 export * from './types.js';
-export { UnsupportedAppRouterError, NoRoutesFoundError } from './unsupported-error.js';
+export {
+  UnsupportedAppRouterError,
+  UnsupportedNextVersionError,
+  NoRoutesFoundError,
+} from './unsupported-error.js';
+export { MIN_SUPPORTED_NEXT_MAJOR } from './environment.js';
 export { RouteCollisionError } from './route-path.js';

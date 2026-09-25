@@ -12,6 +12,20 @@ export class UnsupportedAppRouterError extends Error {
 }
 
 /**
+ * Thrown when the resolved `next` install is older than the minimum supported
+ * major. Only raised when the version is actually resolvable.
+ */
+export class UnsupportedNextVersionError extends Error {
+  constructor(version: string, minimumMajor: number) {
+    super(
+      `Next.js ${version} is not supported: this action requires Next.js ${minimumMajor} or ` +
+        'newer. See the support matrix in the README.',
+    );
+    this.name = 'UnsupportedNextVersionError';
+  }
+}
+
+/**
  * Thrown when `nextDir` doesn't exist, or exists but yields zero measured
  * routes (e.g. a typo'd `next-dir`, or a build that never ran). A silent
  * empty report would pass every threshold and get uploaded as the next

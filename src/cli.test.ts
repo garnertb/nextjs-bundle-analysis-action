@@ -1,5 +1,5 @@
-import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -96,6 +96,34 @@ describe('cli end-to-end (subprocess)', () => {
     const result = JSON.parse(out) as BundleReport;
     expect(result.total).toBeGreaterThan(0);
     expect(result.routes.length).toBeGreaterThan(0);
+  });
+
+  it('measure exits non-zero against a Next 14 install', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'cli-next14-'));
+    cpSync('fixtures/next/15-webpack/mixed/.next', join(dir, '.next'), { recursive: true });
+    mkdirSync(join(dir, 'node_modules', 'next'), { recursive: true });
+    writeFileSync(
+      join(dir, 'node_modules', 'next', 'package.json'),
+      JSON.stringify({ version: '14.2.35' }),
+    );
+    try {
+      const result = spawnSync(
+        TSX_BIN,
+        ['src/cli.ts', 'measure', '--next-dir', join(dir, '.next')],
+        {
+          encoding: 'utf-8',
+          cwd: process.cwd(),
+          env: { ...process.env, VITEST: undefined },
+        },
+      );
+      expect(result.status).not.toBe(0);
+      expect(result.stdout).toBe('');
+      expect(result.stderr).toContain(
+        'Next.js 14.2.35 is not supported: this action requires Next.js 15 or newer.',
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('report exits non-zero when a fail threshold is breached', () => {
