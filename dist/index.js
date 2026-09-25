@@ -100075,9 +100075,10 @@ function routeCell(route) {
   return route.startsWith("_") ? escapeCell(route) : codeSpan(route);
 }
 function baseShaSegment(meta) {
-  const sha = meta.baseShortSha;
-  const code = codeSpan(sha ?? "");
-  if (!sha || !meta.repoUrl) return code;
+  const sha = meta.baseShortSha?.trim();
+  if (!sha) return void 0;
+  const code = codeSpan(sha);
+  if (!meta.repoUrl) return code;
   const base = escapeCell(meta.repoUrl).replace(/\/+$/, "");
   return `[${code}](${base}/commit/${encodeURIComponent(sha)})`;
 }
@@ -100328,8 +100329,10 @@ function buildBlocks(comparison, findings, meta, options) {
   const blocks2 = [`${marker2}
 ${title}`];
   const totalLine = `**${formatBytes(comparison.totalAfter)}** total client JS (${meta.compression})`;
+  const baseSha = baseShaSegment(meta);
   if (comparable) {
-    const lineA = `${totalLine} \xB7 **${formatSignedBytes(comparison.totalDeltaBytes ?? 0)} (${formatSignedPercent(comparison.totalDeltaPercent ?? 0)})** vs ${baseShaSegment(meta)} on ${codeSpan(meta.baseBranch)}`;
+    const baseRef = baseSha ? `${baseSha} on ${codeSpan(meta.baseBranch)}` : codeSpan(meta.baseBranch);
+    const lineA = `${totalLine} \xB7 **${formatSignedBytes(comparison.totalDeltaBytes ?? 0)} (${formatSignedPercent(comparison.totalDeltaPercent ?? 0)})** vs ${baseRef}`;
     const addedRoutes = comparison.routes.filter((r) => r.added);
     const changedSegment = significant.length === 0 && addedRoutes.length === 0 && comparison.removed.length === 0 ? `no route changed by \u2265 ${formatConfiguredBytes(meta.significantChangeBytes)}` : `${significant.length} changed \xB7 ${addedRoutes.length} added \xB7 ${comparison.removed.length} removed`;
     const findingsPhrase = findingCountsPhrase(failureCount, warningCount);
@@ -100338,7 +100341,7 @@ ${title}`];
 ${lineB}`);
   } else {
     const lineA = `${totalLine} \xB7 ${comparison.routes.length} routes \xB7 ${findingCountsPhrase(failureCount, warningCount)}`;
-    const statusLine = comparison.baselineStatus === "missing" ? `No baseline from ${codeSpan(meta.baseBranch)} yet. One is created on the next successful push to ${codeSpan(meta.baseBranch)}. Absolute budgets were still checked.${meta.baselineWarning ? ` (${escapeCell(meta.baselineWarning)})` : ""}` : `Baseline ${baseShaSegment(meta)} was measured with ${comparison.incompatibility?.baseCompression} / collector v${comparison.incompatibility?.baseCollectorVersion} (now ${comparison.incompatibility?.headCompression} / collector v${comparison.incompatibility?.headCollectorVersion}), so deltas are skipped this run. Absolute budgets were still checked.`;
+    const statusLine = comparison.baselineStatus === "missing" ? `No baseline from ${codeSpan(meta.baseBranch)} yet. One is created on the next successful push to ${codeSpan(meta.baseBranch)}. Absolute budgets were still checked.${meta.baselineWarning ? ` (${escapeCell(meta.baselineWarning)})` : ""}` : `${baseSha ? `Baseline ${baseSha}` : "The baseline"} was measured with ${comparison.incompatibility?.baseCompression} / collector v${comparison.incompatibility?.baseCollectorVersion} (now ${comparison.incompatibility?.headCompression} / collector v${comparison.incompatibility?.headCollectorVersion}), so deltas are skipped this run. Absolute budgets were still checked.`;
     blocks2.push(`${lineA}
 ${statusLine}`);
   }
