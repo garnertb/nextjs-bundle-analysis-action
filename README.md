@@ -197,11 +197,16 @@ budgets file is a configuration error, not a silent no-op.
 
 | Combo                              | App Router     | Pages Router |
 | ---------------------------------- | -------------- | ------------ |
-| Next 14, webpack                   | ✅             | ✅           |
 | Next 15, webpack                   | ✅             | ✅           |
 | Next 15, Turbopack (`--turbopack`) | ✅             | ✅           |
 | Next 16, webpack (`--webpack`)     | ❌ unsupported | ✅           |
 | Next 16, Turbopack (default)       | ✅             | ✅           |
+
+**Next.js 15 or newer is required.** The action resolves the installed
+`next` package by walking up from the directory containing `next-dir`
+(falling back to `working-directory`), so hoisted monorepo installs are
+found. If that version is below 15, the action fails with an unsupported-version
+error. If no `next` install can be resolved, the check is skipped.
 
 **Next 16 webpack + App Router is unsupported and fails explicitly.** Next
 16's webpack build no longer emits `app-build-manifest.json`, and the

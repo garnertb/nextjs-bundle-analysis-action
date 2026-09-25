@@ -9,7 +9,7 @@ just-in-time task playbooks live in `.github/skills/*/SKILL.md`.
 
 A GitHub Action (`runs.using: node24`) that measures per-route client JS
 bundle size for Next.js apps (App Router and Pages Router, webpack and
-Turbopack, Next 14-16), compares it against a baseline artifact from a prior
+Turbopack, Next 15-16), compares it against a baseline artifact from a prior
 run on the base branch, evaluates size budgets, and posts a PR report.
 
 ## Architecture map
