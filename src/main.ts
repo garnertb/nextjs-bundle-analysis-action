@@ -20,6 +20,7 @@ import { buildJobSummaryUrl, writeJobSummary } from './github/summary.js';
 import type { GithubApi } from './github/types.js';
 import { parseWorkflowFileFromRef } from './github/workflow-ref.js';
 import { parseInputs, type ActionInputs, type RawInputs } from './inputs.js';
+import { buildActionUrl } from './report/action-url.js';
 import { compareBundleReports, toThresholdInput, type Comparison } from './report/compare.js';
 import { renderFullReport, renderReport, type ReportMeta } from './report/render.js';
 import { slugify } from './slug.js';
@@ -138,6 +139,7 @@ interface BuildMetaParams {
   head: { nextVersion: string | undefined; bundler: string | undefined };
   thresholds: ThresholdConfig;
   actionVersion: string;
+  actionUrl: string | undefined;
   repoUrl: string;
   jobSummaryUrl: string | undefined;
   baselineWarning: string | undefined;
@@ -156,6 +158,7 @@ function buildReportMeta(params: BuildMetaParams): ReportMeta {
     nextVersion: params.head.nextVersion,
     bundler: params.head.bundler,
     actionVersion: params.actionVersion,
+    actionUrl: params.actionUrl,
     jobSummaryUrl: params.jobSummaryUrl,
     repoUrl: params.repoUrl,
     baselineWarning: params.baselineWarning,
@@ -309,7 +312,13 @@ export async function run(): Promise<void> {
     }
 
     const thresholds = buildThresholdConfigFromInputs(inputs);
-    const actionVersion = process.env['GITHUB_ACTION_REF'] ?? 'dev';
+    const actionRef = process.env['GITHUB_ACTION_REF'] || undefined;
+    const actionVersion = actionRef ?? 'dev';
+    const actionUrl = buildActionUrl({
+      serverUrl: context.serverUrl,
+      repository: process.env['GITHUB_ACTION_REPOSITORY'],
+      ref: actionRef,
+    });
     const repoUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}`;
     const jobSummaryUrl = inputs.jobSummary
       ? buildJobSummaryUrl({
@@ -347,6 +356,7 @@ export async function run(): Promise<void> {
         head,
         thresholds,
         actionVersion,
+        actionUrl,
         repoUrl,
         jobSummaryUrl,
         baselineWarning: warning,
@@ -393,6 +403,7 @@ export async function run(): Promise<void> {
         head,
         thresholds,
         actionVersion,
+        actionUrl,
         repoUrl,
         jobSummaryUrl: undefined,
         baselineWarning: undefined,

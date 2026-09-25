@@ -100012,6 +100012,28 @@ function parseInputs(raw) {
   };
 }
 
+// src/report/action-url.ts
+var GITHUB_ORIGIN = "https://github.com";
+var REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+function hasDotSegment(path12) {
+  return path12.split("/").some((segment) => segment === "." || segment === "..");
+}
+function encodeRefSegment(segment) {
+  return encodeURIComponent(segment).replace(
+    /[()'!*]/g,
+    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`
+  );
+}
+function buildActionUrl(params) {
+  const { serverUrl, repository, ref } = params;
+  if (!ref || !repository || !serverUrl) return void 0;
+  if (!REPOSITORY_PATTERN.test(repository)) return void 0;
+  if (hasDotSegment(repository) || hasDotSegment(ref)) return void 0;
+  if (URL.parse(serverUrl)?.origin !== GITHUB_ORIGIN) return void 0;
+  const encodedRef = ref.split("/").map(encodeRefSegment).join("/");
+  return `${GITHUB_ORIGIN}/${repository}/tree/${encodedRef}`;
+}
+
 // src/format.ts
 var MINUS_SIGN = "\u2212";
 function formatBytes(bytes) {
@@ -100049,6 +100071,9 @@ function sanitize(text) {
 function escapeCell(text) {
   return sanitize(text).replaceAll("|", "\\|");
 }
+function escapeLinkText(text) {
+  return sanitize(text).replace(/[\\[\]`|]/g, "\\$&");
+}
 function neutralizeCommentDelimiters(text) {
   let result = text;
   let previous;
@@ -100081,6 +100106,15 @@ function baseShaSegment(meta) {
   if (!meta.repoUrl) return code;
   const base = escapeCell(meta.repoUrl).replace(/\/+$/, "");
   return `[${code}](${base}/commit/${encodeURIComponent(sha)})`;
+}
+var FULL_SHA = /^[0-9a-f]{40}$/i;
+var SAFE_ACTION_URL = /^https:\/\/github\.com\/[^\s()<>]+$/;
+function actionVersionSegment(meta) {
+  const version3 = meta.actionVersion;
+  const label = FULL_SHA.test(version3) ? version3.slice(0, 7) : version3;
+  const url2 = meta.actionUrl;
+  if (!url2 || !SAFE_ACTION_URL.test(url2)) return escapeCell(label);
+  return `[${escapeLinkText(label)}](${url2})`;
 }
 function statusIcon(findings, baselineStatus) {
   if (findings.some((f) => f.level === "fail")) return "\u274C";
@@ -100129,7 +100163,7 @@ function renderFooter(meta) {
   }
   const line1 = segments.length > 0 ? `Thresholds: ${segments.join(" \xB7 ")}` : void 0;
   const nextSegment = meta.nextVersion ? `Next ${escapeCell(meta.nextVersion)}${meta.bundler ? ` (${escapeCell(meta.bundler)})` : ""}` : void 0;
-  const line2 = [nextSegment, `nextjs-bundle-analysis-action ${escapeCell(meta.actionVersion)}`].filter((s) => s !== void 0).join(" \xB7 ");
+  const line2 = [nextSegment, `nextjs-bundle-analysis-action ${actionVersionSegment(meta)}`].filter((s) => s !== void 0).join(" \xB7 ");
   return `<sub>${[line1, line2].filter((s) => s !== void 0).join("<br>\n")}</sub>`;
 }
 function renderFindingsTable(findings) {
@@ -100667,6 +100701,7 @@ function buildReportMeta(params) {
     nextVersion: params.head.nextVersion,
     bundler: params.head.bundler,
     actionVersion: params.actionVersion,
+    actionUrl: params.actionUrl,
     jobSummaryUrl: params.jobSummaryUrl,
     repoUrl: params.repoUrl,
     baselineWarning: params.baselineWarning
@@ -100785,7 +100820,13 @@ async function run() {
       info("Skipping artifact upload (upload-artifact: false).");
     }
     const thresholds = buildThresholdConfigFromInputs(inputs);
-    const actionVersion = process.env["GITHUB_ACTION_REF"] ?? "dev";
+    const actionRef = process.env["GITHUB_ACTION_REF"] || void 0;
+    const actionVersion = actionRef ?? "dev";
+    const actionUrl = buildActionUrl({
+      serverUrl: context5.serverUrl,
+      repository: process.env["GITHUB_ACTION_REPOSITORY"],
+      ref: actionRef
+    });
     const repoUrl = `${context5.serverUrl}/${context5.repo.owner}/${context5.repo.repo}`;
     const jobSummaryUrl = inputs.jobSummary ? buildJobSummaryUrl({
       serverUrl: context5.serverUrl,
@@ -100818,6 +100859,7 @@ async function run() {
         head,
         thresholds,
         actionVersion,
+        actionUrl,
         repoUrl,
         jobSummaryUrl,
         baselineWarning: warning2
@@ -100858,6 +100900,7 @@ async function run() {
         head,
         thresholds,
         actionVersion,
+        actionUrl,
         repoUrl,
         jobSummaryUrl: void 0,
         baselineWarning: void 0

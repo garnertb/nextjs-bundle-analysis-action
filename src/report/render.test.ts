@@ -3,6 +3,7 @@ import { COLLECTOR_VERSION, SCHEMA_VERSION } from '../collectors/types.js';
 import { evaluateThresholds } from '../thresholds/evaluate.js';
 import type { ThresholdConfig } from '../thresholds/types.js';
 import { compareBundleReports, toThresholdInput } from './compare.js';
+import { buildActionUrl } from './action-url.js';
 import { renderReport, type ReportMeta } from './render.js';
 
 function route(
@@ -71,6 +72,7 @@ const meta: ReportMeta = {
   nextVersion: '15.5.4',
   bundler: 'webpack',
   actionVersion: 'v1.2.0',
+  actionUrl: undefined,
   jobSummaryUrl: undefined,
   repoUrl: undefined,
   baselineWarning: undefined,
@@ -583,6 +585,86 @@ describe('renderReport truncation', () => {
     });
 
     expect(result.markdown).toContain('[job summary](https://example.com/summary)');
+  });
+});
+
+describe('renderReport footer action version', () => {
+  const SHA = '0562a1d3f76ac459586a5b4c40a4113452500ca7';
+  const BASE = 'https://github.com/garnertb/nextjs-bundle-analysis-action/tree';
+
+  function footerLine(partial: Partial<ReportMeta>): string {
+    const headReport = report({ total: 1000, routers: { app: { shared: 500 } }, routes: [] });
+    const comparison = compareBundleReports(headReport, headReport);
+    const { markdown } = renderReport(comparison, [], {
+      ...meta,
+      thresholds: {},
+      budgetsFilePath: undefined,
+      ...partial,
+    });
+    const line = markdown.split('\n').find((l) => l.includes('nextjs-bundle-analysis-action'));
+    if (line === undefined) throw new Error('footer line not found');
+    return line;
+  }
+
+  it('links a tag ref with the tag as the text', () => {
+    expect(footerLine({ actionVersion: 'v1.2.0', actionUrl: `${BASE}/v1.2.0` })).toBe(
+      `<sub>Next 15.5.4 (webpack) · nextjs-bundle-analysis-action [v1.2.0](${BASE}/v1.2.0)</sub>`,
+    );
+  });
+
+  it('links a full SHA ref with the full SHA in the URL and 7 characters as the text', () => {
+    expect(footerLine({ actionVersion: SHA, actionUrl: `${BASE}/${SHA}` })).toBe(
+      `<sub>Next 15.5.4 (webpack) · nextjs-bundle-analysis-action [0562a1d](${BASE}/${SHA})</sub>`,
+    );
+  });
+
+  it('shortens a full SHA even when there is no link', () => {
+    expect(footerLine({ actionVersion: SHA, actionUrl: undefined })).toBe(
+      '<sub>Next 15.5.4 (webpack) · nextjs-bundle-analysis-action 0562a1d</sub>',
+    );
+  });
+
+  it('renders dev as plain text without a link', () => {
+    expect(footerLine({ actionVersion: 'dev', actionUrl: undefined })).toBe(
+      '<sub>Next 15.5.4 (webpack) · nextjs-bundle-analysis-action dev</sub>',
+    );
+  });
+
+  it.each([
+    ['v1)](/evil', 'v1)\\](/evil', 'v1%29%5D%28/evil'],
+    ['release/<script>/x', 'release/&lt;script&gt;/x', 'release/%3Cscript%3E/x'],
+    ['a|b', 'a\\|b', 'a%7Cb'],
+    ['a`b', 'a\\`b', 'a%60b'],
+    ['a\\]b', 'a\\\\\\]b', 'a%5C%5Db'],
+    ['/evil-->route', '/evil--&gt;route', '/evil--%3Eroute'],
+    [
+      '<!<!---- nextjs-bundle-analysis:web ---->>',
+      '&lt;!&lt;!---- nextjs-bundle-analysis:web ----&gt;&gt;',
+      '%3C%21%3C%21----%20nextjs-bundle-analysis%3Aweb%20----%3E%3E',
+    ],
+  ])('keeps the hostile ref %j inside a single link', (ref, text, encoded) => {
+    const url = buildActionUrl({ serverUrl: 'https://github.com', repository: 'o/r', ref });
+    expect(url).toBeDefined();
+    expect(url).toContain(encoded);
+    const line = footerLine({ actionVersion: ref, actionUrl: url });
+    expect(line).toBe(
+      `<sub>Next 15.5.4 (webpack) · nextjs-bundle-analysis-action [${text}](${url ?? ''})</sub>`,
+    );
+    expect(line).not.toContain('<!--');
+    expect(line).not.toContain('-->');
+    expect(line.match(/(?<!\\)(?:\\\\)*\]\(/g)).toHaveLength(1);
+  });
+
+  it.each([
+    'https://github.com/o/r/tree/x) [spoof](https://example.test',
+    'https://github.com/o/r/tree/<x>',
+    'https://github.com/o/r/tree/a b',
+    'javascript:alert(1)',
+    'https://example.test/o/r/tree/v1',
+  ])('falls back to plain text for the unsafe actionUrl %j', (actionUrl) => {
+    expect(footerLine({ actionVersion: 'v1.2.0', actionUrl })).toBe(
+      '<sub>Next 15.5.4 (webpack) · nextjs-bundle-analysis-action v1.2.0</sub>',
+    );
   });
 });
 
