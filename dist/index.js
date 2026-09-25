@@ -100075,13 +100075,7 @@ function escapeLinkText(text) {
   return sanitize(text).replace(/[\\[\]`|]/g, "\\$&");
 }
 function neutralizeCommentDelimiters(text) {
-  let result = text;
-  let previous;
-  do {
-    previous = result;
-    result = result.replace(/<!--/g, "<\u200D!--").replace(/-->/g, "--\u200D>");
-  } while (result !== previous);
-  return result;
+  return text.replace(/<!--/g, "<\u200D!--").replace(/--(!?)>/g, "--\u200D$1>");
 }
 function codeSpan(text) {
   const safe = neutralizeCommentDelimiters(text.replace(CONTROL_CHARS, "")).replaceAll("|", "\\|");

@@ -16,8 +16,8 @@ applyTo: 'src/report/**'
   - Outside code spans, `<` and `>` are entity-encoded so a spoofed
     `<!--`/`-->` can't fake the hidden marker comment.
   - Inside code spans, entities are NOT decoded by CommonMark, so
-    `codeSpan` instead neutralizes comment delimiters (breaks `<!--`/`-->`)
-    without literal entity text showing up to the reader.
+    `codeSpan` instead neutralizes comment delimiters (breaks `<!--`, `-->`,
+    and `--!>`) without literal entity text showing up to the reader.
   - Add both spoof-attempt strings from `escape.test.ts` as regression
     cases for any new escaping path.
 - Truncation order (under `MAX_MARKDOWN_LENGTH`, ~60k chars): findings are
