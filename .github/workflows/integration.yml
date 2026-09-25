@@ -164,6 +164,18 @@ jobs:
           cache-dependency-path: |
             pnpm-lock.yaml
             fixtures/next/**/pnpm-lock.yaml
+      - name: Check whether this PR touches the fingerprint schema/collector-version constants
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -o pipefail
+          git fetch --depth=1 origin "$BASE_REF"
+          if git diff --name-only FETCH_HEAD HEAD -- src/collectors/types.ts | grep -q .; then
+            echo "fingerprint_changed=true" >> "$GITHUB_ENV"
+          else
+            echo "fingerprint_changed=false" >> "$GITHUB_ENV"
+          fi
       - name: Assemble a fresh build directory (fixture source + the 15-webpack pinned lockfile)
         run: |
           set -o pipefail
@@ -189,6 +201,7 @@ jobs:
         if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
+          BASE_REF: ${{ github.base_ref }}
         run: |
           set -o pipefail
           status="${{ steps.analyze.outputs.baseline-status }}"
@@ -202,20 +215,22 @@ jobs:
               echo "OK: baseline found and delta computed."
               ;;
             incompatible)
-              echo "::warning::baseline-status=incompatible (expected when this PR changes the sizes-JSON schema or collector version; deltas are skipped, absolute budgets still checked)."
-              ;;
-            missing)
-              is_fork="${{ github.event.pull_request.head.repo.full_name != github.repository }}"
-              if [[ "$is_fork" == "true" ]]; then
-                echo "::warning::baseline-status=missing on a fork PR, whose token can't read the base repo's workflow-run artifacts; this is expected."
-                exit 0
-              fi
-              push_runs=$(gh api "repos/${{ github.repository }}/actions/workflows/integration.yml/runs?branch=main&event=push&status=success&per_page=1" --jq '.total_count')
-              if [[ "$push_runs" -gt 0 ]]; then
-                echo "::error::baseline-status=missing, but a successful push run of integration.yml already exists on main -- the baseline should have been found."
+              if [[ "${{ env.fingerprint_changed }}" == "true" ]]; then
+                echo "::warning::baseline-status=incompatible (expected: this PR changes src/collectors/types.ts, the fingerprint schema/collector-version constants; deltas are skipped, absolute budgets still checked)."
+              else
+                echo "::error::baseline-status=incompatible, but this PR doesn't touch src/collectors/types.ts -- this looks like a broken cross-run baseline download/parse, not an expected schema bump."
                 exit 1
               fi
-              echo "::warning::baseline-status=missing (expected: no successful push run of integration.yml on main yet)."
+              ;;
+            missing)
+              push_runs=$(gh api --method GET "repos/${{ github.repository }}/actions/workflows/integration.yml/runs" \
+                -f branch="$BASE_REF" -f event=push -f status=success -f per_page=1 \
+                --jq '.total_count')
+              if [[ "$push_runs" -gt 0 ]]; then
+                echo "::error::baseline-status=missing, but a successful push run of integration.yml already exists on $BASE_REF -- the baseline should have been found."
+                exit 1
+              fi
+              echo "::warning::baseline-status=missing (expected: no successful push run of integration.yml on $BASE_REF yet)."
               ;;
             *)
               echo "::error::Unexpected baseline-status: $status"
