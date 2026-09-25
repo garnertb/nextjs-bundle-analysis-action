@@ -34,10 +34,10 @@ absolute budgets (see [Sample report](#sample-report) below).
 
 ## Usage
 
-Every input is optional. Sizes are decimal bytes (`512B`, `250kB` =
-250,000 bytes, matching `next build`'s output); `*-increase` inputs also
-accept a percent (`5%`). Leaving a `warn-*`/`fail-*` input unset disables
-that check.
+Every input is optional. Size inputs take a number with a `B` or `kB`
+unit, e.g. `512B` or `250kB` (no conversion needed; `kB` is decimal, 1 kB =
+1000 B, matching `next build`'s output). `*-increase` inputs also accept a
+percent (`5%`). Leaving a `warn-*`/`fail-*` input unset disables that check.
 
 ```yaml
 - uses: garnertb/nextjs-bundle-analysis-action@v1
