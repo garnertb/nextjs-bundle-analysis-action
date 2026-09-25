@@ -15,7 +15,7 @@ applyTo: '.github/workflows/**,action.yml'
   tagging job).
 - `action.yml` input/output changes must land together with matching
   updates to `src/inputs.ts` (or `src/main.ts`'s `INPUT_NAMES`/output list)
-  and the README's input/output table in the same PR; they're required to
+  and the README's Usage block (inputs) and Outputs table in the same PR; they're required to
   match exactly.
 - `dist/index.js` must be rebuilt (`pnpm run build`) and committed whenever
   `src/**` changes; `check-dist` fails a PR where it's stale. It must not
