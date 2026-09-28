@@ -16,7 +16,7 @@ import { createGithubApi } from './github/api.js';
 import {
   buildUnreadableBaselineComparison,
   findBaselineArtifact,
-  resolveMergeBaseSha,
+  resolveBaseCommitSha,
 } from './github/baseline.js';
 import { runBuildCommand } from './github/build.js';
 import { resolveTrustedCommentAuthors, upsertComment } from './github/comment.js';
@@ -145,7 +145,7 @@ interface BuildMetaParams {
   slug: string;
   baseBranch: string;
   baseShortSha: string | undefined;
-  mergeBaseShortSha: string | undefined;
+  baseCommitShortSha: string | undefined;
   head: { nextVersion: string | undefined; bundler: string | undefined };
   thresholds: ThresholdConfig;
   actionVersion: string;
@@ -161,7 +161,7 @@ function buildReportMeta(params: BuildMetaParams): ReportMeta {
     slug: params.slug,
     baseBranch: params.baseBranch,
     baseShortSha: params.baseShortSha,
-    mergeBaseShortSha: params.mergeBaseShortSha,
+    baseCommitShortSha: params.baseCommitShortSha,
     compression: params.inputs.compression,
     significantChangeBytes: parseByteSize(params.inputs.significantChange),
     thresholds: params.thresholds,
@@ -186,9 +186,9 @@ interface ResolveBaselineParams {
   pullRequestBaseRef: string | undefined;
   repositoryId: number | undefined;
   slug: string;
-  /** The PR build's own commit (`github.context.sha`), used to resolve the merge base. */
+  /** The PR build's own commit (`github.context.sha`), used to resolve the base commit. */
   sha: string;
-  /** The event payload's `pull_request.base.sha`, the merge-base fallback source. */
+  /** The event payload's `pull_request.base.sha`, the base-commit fallback source. */
   payloadBaseSha: string | undefined;
 }
 
@@ -196,8 +196,8 @@ interface ResolvedBaseline {
   comparison: Comparison;
   baseBranch: string;
   baseShortSha: string | undefined;
-  /** Set only when the baseline was marked `stale`, naming the PR's actual merge base. */
-  mergeBaseShortSha: string | undefined;
+  /** Set only when the baseline was marked `stale`, naming the PR's actual base commit. */
+  baseCommitShortSha: string | undefined;
   /** Set when the lookup itself errored, so the caller can surface it in the report. */
   warning: string | undefined;
 }
@@ -217,7 +217,7 @@ async function resolveBaseline(params: ResolveBaselineParams): Promise<ResolvedB
         comparison: compareBundleReports(params.head, undefined),
         baseBranch,
         baseShortSha: undefined,
-        mergeBaseShortSha: undefined,
+        baseCommitShortSha: undefined,
         warning: undefined,
       };
     }
@@ -229,7 +229,7 @@ async function resolveBaseline(params: ResolveBaselineParams): Promise<ResolvedB
         comparison: compareBundleReports(params.head, undefined),
         baseBranch,
         baseShortSha: undefined,
-        mergeBaseShortSha: undefined,
+        baseCommitShortSha: undefined,
         warning: undefined,
       };
     }
@@ -239,20 +239,20 @@ async function resolveBaseline(params: ResolveBaselineParams): Promise<ResolvedB
     // searches a different branch, whose tip isn't `sha`'s parent.
     let preferredHeadSha: string | undefined;
     if (params.pullRequestBaseRef !== undefined && baseBranch === params.pullRequestBaseRef) {
-      const mergeBase = await resolveMergeBaseSha({
+      const baseCommit = await resolveBaseCommitSha({
         api: params.api,
         owner: params.owner,
         repo: params.repo,
         sha: params.sha,
         payloadBaseSha: params.payloadBaseSha,
       });
-      if (mergeBase) {
-        preferredHeadSha = mergeBase.sha;
-        if (mergeBase.source === 'payload') {
+      if (baseCommit) {
+        preferredHeadSha = baseCommit.sha;
+        if (baseCommit.source === 'payload') {
           core.warning(
-            "Could not verify this PR's merge base via the commits API " +
+            "Could not verify this PR's base commit via the commits API " +
               `(sha ${params.sha.slice(0, 7)}); using the pull_request event's base.sha ` +
-              `(${mergeBase.sha.slice(0, 7)}) instead.`,
+              `(${baseCommit.sha.slice(0, 7)}) instead.`,
           );
         }
       }
@@ -273,7 +273,7 @@ async function resolveBaseline(params: ResolveBaselineParams): Promise<ResolvedB
         comparison: compareBundleReports(params.head, undefined),
         baseBranch,
         baseShortSha: undefined,
-        mergeBaseShortSha: undefined,
+        baseCommitShortSha: undefined,
         warning: undefined,
       };
     }
@@ -290,15 +290,15 @@ async function resolveBaseline(params: ResolveBaselineParams): Promise<ResolvedB
     const baseShortSha = match.headSha.slice(0, 7);
     if (result.status === 'found') {
       const comparison = compareBundleReports(params.head, result.report);
-      const staleMergeBaseSha =
+      const staleBaseCommitSha =
         preferredHeadSha !== undefined && match.headSha !== preferredHeadSha
           ? preferredHeadSha
           : undefined;
       return {
-        comparison: staleMergeBaseSha !== undefined ? markBaselineStale(comparison) : comparison,
+        comparison: staleBaseCommitSha !== undefined ? markBaselineStale(comparison) : comparison,
         baseBranch,
         baseShortSha,
-        mergeBaseShortSha: staleMergeBaseSha?.slice(0, 7),
+        baseCommitShortSha: staleBaseCommitSha?.slice(0, 7),
         warning: undefined,
       };
     }
@@ -307,7 +307,7 @@ async function resolveBaseline(params: ResolveBaselineParams): Promise<ResolvedB
       comparison: buildUnreadableBaselineComparison(params.head),
       baseBranch,
       baseShortSha,
-      mergeBaseShortSha: undefined,
+      baseCommitShortSha: undefined,
       warning: undefined,
     };
   } catch (error) {
@@ -320,7 +320,7 @@ async function resolveBaseline(params: ResolveBaselineParams): Promise<ResolvedB
       comparison: compareBundleReports(params.head, undefined),
       baseBranch: baseBranch ?? params.pullRequestBaseRef ?? 'unknown',
       baseShortSha: undefined,
-      mergeBaseShortSha: undefined,
+      baseCommitShortSha: undefined,
       warning,
     };
   }
@@ -388,7 +388,7 @@ export async function run(): Promise<void> {
       const repositoryId = (context.payload.repository as { id?: number } | undefined)?.id;
       const api = createGithubApi(github.getOctokit(inputs.githubToken));
 
-      const { comparison, baseBranch, baseShortSha, mergeBaseShortSha, warning } =
+      const { comparison, baseBranch, baseShortSha, baseCommitShortSha, warning } =
         await resolveBaseline({
           api,
           inputs,
@@ -410,7 +410,7 @@ export async function run(): Promise<void> {
         slug,
         baseBranch,
         baseShortSha,
-        mergeBaseShortSha,
+        baseCommitShortSha,
         head,
         thresholds,
         actionVersion,
@@ -458,7 +458,7 @@ export async function run(): Promise<void> {
         slug,
         baseBranch,
         baseShortSha: undefined,
-        mergeBaseShortSha: undefined,
+        baseCommitShortSha: undefined,
         head,
         thresholds,
         actionVersion,

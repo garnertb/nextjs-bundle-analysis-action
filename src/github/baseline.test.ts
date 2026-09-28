@@ -3,7 +3,7 @@ import {
   buildUnreadableBaselineComparison,
   findBaselineArtifact,
   isBundleReport,
-  resolveMergeBaseSha,
+  resolveBaseCommitSha,
 } from './baseline.js';
 import type { ArtifactSummary, GithubApi, WorkflowRunSummary } from './types.js';
 
@@ -136,7 +136,7 @@ describe('findBaselineArtifact', () => {
       const api = fakeApi({
         runs: [
           { id: 2, headSha: 'newer', headRepositoryId: 1 },
-          { id: 1, headSha: 'merge-base', headRepositoryId: 1 },
+          { id: 1, headSha: 'base-commit', headRepositoryId: 1 },
         ],
         artifactsByRun: {
           1: [{ id: 10, name: 'next-bundle-sizes-web', expired: false }],
@@ -146,16 +146,16 @@ describe('findBaselineArtifact', () => {
       const match = await findBaselineArtifact({
         ...baseParams,
         api,
-        preferredHeadSha: 'merge-base',
+        preferredHeadSha: 'base-commit',
       });
-      expect(match).toEqual({ runId: 1, headSha: 'merge-base', artifactId: 10 });
+      expect(match).toEqual({ runId: 1, headSha: 'base-commit', artifactId: 10 });
     });
 
     it('falls back to the newest trusted run when the exact-SHA run is from a fork', async () => {
       const api = fakeApi({
         runs: [
           { id: 2, headSha: 'newer', headRepositoryId: 1 },
-          { id: 1, headSha: 'merge-base', headRepositoryId: 999 },
+          { id: 1, headSha: 'base-commit', headRepositoryId: 999 },
         ],
         artifactsByRun: {
           1: [{ id: 10, name: 'next-bundle-sizes-web', expired: false }],
@@ -165,7 +165,7 @@ describe('findBaselineArtifact', () => {
       const match = await findBaselineArtifact({
         ...baseParams,
         api,
-        preferredHeadSha: 'merge-base',
+        preferredHeadSha: 'base-commit',
       });
       expect(match).toEqual({ runId: 2, headSha: 'newer', artifactId: 20 });
     });
@@ -174,7 +174,7 @@ describe('findBaselineArtifact', () => {
       const api = fakeApi({
         runs: [
           { id: 2, headSha: 'newer', headRepositoryId: 1 },
-          { id: 1, headSha: 'merge-base', headRepositoryId: 1 },
+          { id: 1, headSha: 'base-commit', headRepositoryId: 1 },
         ],
         artifactsByRun: {
           1: [{ id: 10, name: 'next-bundle-sizes-web', expired: true }],
@@ -184,7 +184,7 @@ describe('findBaselineArtifact', () => {
       const match = await findBaselineArtifact({
         ...baseParams,
         api,
-        preferredHeadSha: 'merge-base',
+        preferredHeadSha: 'base-commit',
       });
       expect(match).toEqual({ runId: 2, headSha: 'newer', artifactId: 20 });
     });
@@ -223,7 +223,7 @@ describe('findBaselineArtifact', () => {
           // Newest-first order: the trusted match is first in the unfiltered walk,
           // but only the untrusted run below matches the exact-SHA filter.
           { id: 2, headSha: 'trusted-newest', headRepositoryId: 1 },
-          { id: 5, headSha: 'merge-base', headRepositoryId: 999 },
+          { id: 5, headSha: 'base-commit', headRepositoryId: 999 },
         ],
         artifactsByRun: {
           2: [{ id: 20, name: 'next-bundle-sizes-web', expired: false }],
@@ -232,7 +232,7 @@ describe('findBaselineArtifact', () => {
       const match = await findBaselineArtifact({
         ...baseParams,
         api,
-        preferredHeadSha: 'merge-base',
+        preferredHeadSha: 'base-commit',
         maxRuns: 1,
       });
       expect(match).toEqual({ runId: 2, headSha: 'trusted-newest', artifactId: 20 });
@@ -240,8 +240,8 @@ describe('findBaselineArtifact', () => {
   });
 });
 
-describe('resolveMergeBaseSha', () => {
-  const mergeBaseParams = {
+describe('resolveBaseCommitSha', () => {
+  const baseCommitParams = {
     owner: 'octocat',
     repo: 'hello-world',
     sha: 'merge-commit-sha',
@@ -265,7 +265,7 @@ describe('resolveMergeBaseSha', () => {
 
   it('uses the first parent when the commit has exactly 2 parents', async () => {
     const api = apiWithParents(['first-parent-sha', 'second-parent-sha']);
-    const result = await resolveMergeBaseSha({ ...mergeBaseParams, api });
+    const result = await resolveBaseCommitSha({ ...baseCommitParams, api });
     expect(result).toEqual({ sha: 'first-parent-sha', source: 'merge-commit' });
     expect(api.getCommitParents).toHaveBeenCalledWith({
       owner: 'octocat',
@@ -276,13 +276,13 @@ describe('resolveMergeBaseSha', () => {
 
   it('falls back to the payload base SHA when the commit has only 1 parent', async () => {
     const api = apiWithParents(['only-parent-sha']);
-    const result = await resolveMergeBaseSha({ ...mergeBaseParams, api });
+    const result = await resolveBaseCommitSha({ ...baseCommitParams, api });
     expect(result).toEqual({ sha: 'payload-base-sha', source: 'payload' });
   });
 
   it('falls back to the payload base SHA when the commit has 3+ parents', async () => {
     const api = apiWithParents(['p1', 'p2', 'p3']);
-    const result = await resolveMergeBaseSha({ ...mergeBaseParams, api });
+    const result = await resolveBaseCommitSha({ ...baseCommitParams, api });
     expect(result).toEqual({ sha: 'payload-base-sha', source: 'payload' });
   });
 
@@ -290,14 +290,14 @@ describe('resolveMergeBaseSha', () => {
     const api = apiWithParents(() => {
       throw Object.assign(new Error('Not Found'), { status: 404 });
     });
-    const result = await resolveMergeBaseSha({ ...mergeBaseParams, api });
+    const result = await resolveBaseCommitSha({ ...baseCommitParams, api });
     expect(result).toEqual({ sha: 'payload-base-sha', source: 'payload' });
   });
 
   it('returns undefined when neither source is available', async () => {
     const api = apiWithParents(['only-parent-sha']);
-    const result = await resolveMergeBaseSha({
-      ...mergeBaseParams,
+    const result = await resolveBaseCommitSha({
+      ...baseCommitParams,
       api,
       payloadBaseSha: undefined,
     });

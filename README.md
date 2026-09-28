@@ -33,13 +33,13 @@ first run there's no baseline yet; the report says so and still checks
 absolute budgets (see [Sample report](#sample-report) below).
 
 On a `pull_request`, the action first looks for a baseline from the PR's
-actual merge base — the first parent of the merge commit `GITHUB_SHA` builds,
+actual base commit — the first parent of the merge commit `GITHUB_SHA` builds,
 resolved via the GitHub API. If no successful push run exists yet for that
 exact commit (e.g. it just merged, or that push run is still running), it
 falls back to the newest trusted push run on the base branch and reports
 `baseline-status: stale`: thresholds still apply, but the report notes that
 deltas may include changes already on the base branch. This can be permanent
-for a given merge base if that commit's push run was skipped, failed, or
+for a given base commit if that commit's push run was skipped, failed, or
 cancelled — updating or rebasing the PR resolves it.
 
 ## Usage
@@ -92,7 +92,7 @@ percent (`5%`). Leaving a `warn-*`/`fail-*` input unset disables that check.
     # Default: true
     upload-artifact: ''
 
-    # Token used to download baseline artifacts, resolve the PR's merge base,
+    # Token used to download baseline artifacts, resolve the PR's base commit,
     # and upsert the PR comment.
     # Needs `actions: read`, `contents: read`, and `pull-requests: write`; a
     # missing scope downgrades that feature to a warning rather than failing
@@ -218,7 +218,7 @@ PR comment.
 
 ```yaml
 permissions:
-  contents: read # also used to resolve the PR's merge base commit
+  contents: read # also used to resolve the PR's base commit
   actions: read # to look up the baseline workflow run's artifacts
   pull-requests: write # to upsert the PR comment
 ```
@@ -227,7 +227,7 @@ permissions:
 baseline comparison or the PR comment (e.g. a `push`-only, budgets-only
 setup) — a missing scope just downgrades that feature to a warning, it
 doesn't fail the run. The same applies if `github-token` can't use
-`contents: read` to look up the merge base commit: the baseline lookup falls
+`contents: read` to look up the base commit: the baseline lookup falls
 back to the pull request's recorded base commit instead.
 
 ## Outputs

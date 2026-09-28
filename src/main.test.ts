@@ -285,12 +285,12 @@ describe('run', () => {
     );
   }
 
-  const MERGE_BASE_SHA = 'mergebase1111111111111111111111111111';
+  const BASE_COMMIT_SHA = 'basecommit111111111111111111111111111';
   const PR_HEAD_SHA = 'prhead222222222222222222222222222222';
   const NEWER_PUSH_SHA = 'newerpush33333333333333333333333333';
   const PAYLOAD_BASE_SHA = 'payloadbase0000000000000000000000000';
 
-  function setUpMergeBasePullRequest(payloadBaseSha: string | undefined): void {
+  function setUpBaseCommitPullRequest(payloadBaseSha: string | undefined): void {
     contextState.current.eventName = 'pull_request';
     contextState.current.sha = 'headcommit0000000000000000000000000000';
     contextState.current.payload = {
@@ -301,20 +301,20 @@ describe('run', () => {
     process.env['GITHUB_WORKFLOW_REF'] = 'octocat/demo/.github/workflows/ci.yml@refs/heads/main';
   }
 
-  it("prefers an exact match on the PR's merge base over a newer push run (baseline-status: found)", async () => {
-    setUpMergeBasePullRequest(PAYLOAD_BASE_SHA);
+  it("prefers an exact match on the PR's base commit over a newer push run (baseline-status: found)", async () => {
+    setUpBaseCommitPullRequest(PAYLOAD_BASE_SHA);
     mockBaselineDownload();
 
     const api = fakeGithubApiFilteringByHeadSha(
       [
         { id: 2, headSha: NEWER_PUSH_SHA, headRepositoryId: 555 },
-        { id: 1, headSha: MERGE_BASE_SHA, headRepositoryId: 555 },
+        { id: 1, headSha: BASE_COMMIT_SHA, headRepositoryId: 555 },
       ],
       {
         1: [{ id: 10, name: 'next-bundle-sizes-test-app', expired: false }],
         2: [{ id: 20, name: 'next-bundle-sizes-test-app', expired: false }],
       },
-      { getCommitParents: vi.fn(async () => [MERGE_BASE_SHA, PR_HEAD_SHA]) },
+      { getCommitParents: vi.fn(async () => [BASE_COMMIT_SHA, PR_HEAD_SHA]) },
     );
     apiState.fakeApi = api;
 
@@ -326,14 +326,14 @@ describe('run', () => {
     );
   });
 
-  it('falls back to the latest trusted run and reports a stale baseline when the merge base has no run', async () => {
-    setUpMergeBasePullRequest(PAYLOAD_BASE_SHA);
+  it('falls back to the latest trusted run and reports a stale baseline when the base commit has no run', async () => {
+    setUpBaseCommitPullRequest(PAYLOAD_BASE_SHA);
     mockBaselineDownload();
 
     const api = fakeGithubApiFilteringByHeadSha(
       [{ id: 2, headSha: NEWER_PUSH_SHA, headRepositoryId: 555 }],
       { 2: [{ id: 20, name: 'next-bundle-sizes-test-app', expired: false }] },
-      { getCommitParents: vi.fn(async () => [MERGE_BASE_SHA, PR_HEAD_SHA]) },
+      { getCommitParents: vi.fn(async () => [BASE_COMMIT_SHA, PR_HEAD_SHA]) },
     );
     apiState.fakeApi = api;
 
@@ -349,15 +349,15 @@ describe('run', () => {
       'a getCommit API error',
       async () => Promise.reject(Object.assign(new Error('Not Found'), { status: 404 })),
     ],
-    ['a commit with a single parent (linear history)', async () => [MERGE_BASE_SHA]],
+    ['a commit with a single parent (linear history)', async () => [BASE_COMMIT_SHA]],
     [
       'a commit with three parents (octopus merge)',
-      async () => [MERGE_BASE_SHA, PR_HEAD_SHA, 'thirdparent4444444444444444444444444'],
+      async () => [BASE_COMMIT_SHA, PR_HEAD_SHA, 'thirdparent4444444444444444444444444'],
     ],
   ])(
-    "falls back to the payload's base sha and warns when the merge base can't be resolved (%s)",
+    "falls back to the payload's base sha and warns when the base commit can't be resolved (%s)",
     async (_label, getCommitParentsImpl) => {
-      setUpMergeBasePullRequest(PAYLOAD_BASE_SHA);
+      setUpBaseCommitPullRequest(PAYLOAD_BASE_SHA);
       mockBaselineDownload();
 
       const api = fakeGithubApiFilteringByHeadSha(
@@ -376,15 +376,15 @@ describe('run', () => {
     },
   );
 
-  it("still resolves the merge base when base-branch input matches the PR's base ref", async () => {
+  it("still resolves the base commit when base-branch input matches the PR's base ref", async () => {
     coreState.inputs = defaultInputs({ 'base-branch': 'main' });
-    setUpMergeBasePullRequest(PAYLOAD_BASE_SHA);
+    setUpBaseCommitPullRequest(PAYLOAD_BASE_SHA);
     mockBaselineDownload();
 
     const api = fakeGithubApiFilteringByHeadSha(
-      [{ id: 1, headSha: MERGE_BASE_SHA, headRepositoryId: 555 }],
+      [{ id: 1, headSha: BASE_COMMIT_SHA, headRepositoryId: 555 }],
       { 1: [{ id: 10, name: 'next-bundle-sizes-test-app', expired: false }] },
-      { getCommitParents: vi.fn(async () => [MERGE_BASE_SHA, PR_HEAD_SHA]) },
+      { getCommitParents: vi.fn(async () => [BASE_COMMIT_SHA, PR_HEAD_SHA]) },
     );
     apiState.fakeApi = api;
 
@@ -394,15 +394,15 @@ describe('run', () => {
     expect(outputValue('baseline-status')).toBe('found');
   });
 
-  it("skips merge-base resolution when base-branch overrides the PR's actual base branch", async () => {
+  it("skips base-commit resolution when base-branch overrides the PR's actual base branch", async () => {
     coreState.inputs = defaultInputs({ 'base-branch': 'develop' });
-    setUpMergeBasePullRequest(PAYLOAD_BASE_SHA);
+    setUpBaseCommitPullRequest(PAYLOAD_BASE_SHA);
     mockBaselineDownload();
 
     const api = fakeGithubApiFilteringByHeadSha(
       [{ id: 1, headSha: 'developheadsha00000000000000000000000', headRepositoryId: 555 }],
       { 1: [{ id: 10, name: 'next-bundle-sizes-test-app', expired: false }] },
-      { getCommitParents: vi.fn(async () => [MERGE_BASE_SHA, PR_HEAD_SHA]) },
+      { getCommitParents: vi.fn(async () => [BASE_COMMIT_SHA, PR_HEAD_SHA]) },
     );
     apiState.fakeApi = api;
 
@@ -416,7 +416,7 @@ describe('run', () => {
     'never calls getCommitParents or looks up a baseline on a %s event',
     async (eventName) => {
       contextState.current.eventName = eventName;
-      const getCommitParents = vi.fn(async () => [MERGE_BASE_SHA, PR_HEAD_SHA]);
+      const getCommitParents = vi.fn(async () => [BASE_COMMIT_SHA, PR_HEAD_SHA]);
       apiState.fakeApi = fakeGithubApi({ getCommitParents });
 
       await run();

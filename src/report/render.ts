@@ -19,8 +19,8 @@ export interface ReportMeta {
   baseBranch: string;
   /** Short SHA of the baseline commit; may be `undefined` even when a baseline exists (e.g. CLI without `--base-sha`). */
   baseShortSha: string | undefined;
-  /** Short SHA of the PR's actual merge base; set only when the baseline is `stale`, to name it in the stale note. */
-  mergeBaseShortSha: string | undefined;
+  /** Short SHA of the PR's actual base commit; set only when the baseline is `stale`, to name it in the stale note. */
+  baseCommitShortSha: string | undefined;
   compression: CompressionAlgorithm;
   significantChangeBytes: number;
   thresholds: ThresholdConfig;
@@ -70,21 +70,21 @@ function baseShaSegment(meta: ReportMeta): string | undefined {
 }
 
 /**
- * Warns that the baseline, though comparable, isn't this PR's actual merge
- * base: no successful baseline run exists yet for that commit, so some of
+ * Warns that the baseline, though comparable, isn't this PR's actual base
+ * commit: no successful baseline run exists yet for that commit, so some of
  * the reported delta may really belong to `baseBranch`, not the PR.
- * `undefined` when there's no merge base SHA to name (shouldn't happen for
+ * `undefined` when there's no base commit SHA to name (shouldn't happen for
  * a `stale` comparison, but keeps this function total).
  */
 function staleBaselineNote(meta: ReportMeta): string | undefined {
-  const mergeBaseSha = meta.mergeBaseShortSha?.trim();
-  if (!mergeBaseSha) return undefined;
-  const mergeBase = codeSpan(mergeBaseSha);
+  const baseCommitSha = meta.baseCommitShortSha?.trim();
+  if (!baseCommitSha) return undefined;
+  const baseCommit = codeSpan(baseCommitSha);
   const baseline = baseShaSegment(meta) ?? 'The baseline';
   return (
-    `⚠️ Baseline ${baseline} isn't this PR's merge base ${mergeBase}: no successful baseline run ` +
-    `exists for ${mergeBase}, so deltas may include changes already on ${codeSpan(meta.baseBranch)}. ` +
-    `A re-run helps only after a push run for ${mergeBase} itself succeeds.`
+    `⚠️ Baseline ${baseline} isn't this PR's base commit ${baseCommit}: no successful baseline run ` +
+    `exists for ${baseCommit}, so deltas may include changes already on ${codeSpan(meta.baseBranch)}. ` +
+    `A re-run helps only after a push run for ${baseCommit} itself succeeds.`
   );
 }
 

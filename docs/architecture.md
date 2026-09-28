@@ -83,11 +83,11 @@ When the preferred commit has no trusted run yet, the search falls back to
 the newest trusted run on the base branch, and the resulting comparison is
 marked `baseline-status: stale` rather than `found`: every threshold still
 applies, but the report calls out that deltas may include changes already on
-the base branch. This can be permanent for a given merge base — if that
+the base branch. This can be permanent for a given base commit — if that
 commit's own push run was skipped (a `paths` filter, `[skip ci]`), failed, or
 was cancelled, and nobody re-runs it, later pushes to the base branch don't
 help a PR merged onto that commit. Rebasing or otherwise updating the PR
-does, since it changes the merge base being resolved.
+does, since it changes the base commit being resolved.
 
 ## Why the core (`collectors`/`thresholds`/`report`/`cli`) has no `@actions/*` imports
 

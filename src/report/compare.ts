@@ -5,8 +5,8 @@ export type BaselineStatus = 'found' | 'stale' | 'missing' | 'incompatible';
 
 /**
  * `found` and `stale` both carry a real base report to diff against; only
- * `stale` additionally means the base report isn't the PR's actual merge
- * base. `missing`/`incompatible` have no usable base report at all.
+ * `stale` additionally means the base report isn't the PR's actual base
+ * commit. `missing`/`incompatible` have no usable base report at all.
  */
 export function isComparableBaseline(status: BaselineStatus): boolean {
   return status === 'found' || status === 'stale';
@@ -182,7 +182,7 @@ export function toThresholdInput(comparison: Comparison): ThresholdEvaluationInp
 
 /**
  * Switches a `found` comparison to `stale`, flagging that the base report
- * isn't this PR's actual merge base even though it's otherwise usable.
+ * isn't this PR's actual base commit even though it's otherwise usable.
  * Leaves `missing`/`incompatible` untouched: an incompatible fingerprint
  * takes precedence, since there are no comparable deltas to flag as stale.
  */

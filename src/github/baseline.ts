@@ -86,7 +86,7 @@ async function searchTrustedRuns(
 
 /**
  * Finds the baseline artifact, preferring the run for `preferredHeadSha`
- * (the PR's actual merge base) when set, and falling back to the newest
+ * (the PR's actual base commit) when set, and falling back to the newest
  * trusted run otherwise. The returned match's `headSha` lets the caller
  * detect whether the fallback path was used (`headSha !== preferredHeadSha`)
  * and flag the comparison as `stale`.
@@ -114,7 +114,7 @@ export async function findBaselineArtifact(
   return searchTrustedRuns({ ...shared, headSha: undefined });
 }
 
-export interface ResolveMergeBaseShaParams {
+export interface ResolveBaseCommitShaParams {
   api: GithubApi;
   owner: string;
   repo: string;
@@ -124,7 +124,7 @@ export interface ResolveMergeBaseShaParams {
   payloadBaseSha: string | undefined;
 }
 
-export interface ResolvedMergeBase {
+export interface ResolvedBaseCommit {
   sha: string;
   /** `'merge-commit'` when `sha`'s first parent was used; `'payload'` when the fallback was used. */
   source: 'merge-commit' | 'payload';
@@ -138,9 +138,9 @@ export interface ResolvedMergeBase {
  * checkouts, squash workflows, etc.). Returns `undefined` when neither
  * source is available, so the caller can keep today's un-preferred lookup.
  */
-export async function resolveMergeBaseSha(
-  params: ResolveMergeBaseShaParams,
-): Promise<ResolvedMergeBase | undefined> {
+export async function resolveBaseCommitSha(
+  params: ResolveBaseCommitShaParams,
+): Promise<ResolvedBaseCommit | undefined> {
   let parents: string[] | undefined;
   try {
     parents = await params.api.getCommitParents({

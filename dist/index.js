@@ -99702,7 +99702,7 @@ async function findBaselineArtifact(params) {
   }
   return searchTrustedRuns({ ...shared, headSha: void 0 });
 }
-async function resolveMergeBaseSha(params) {
+async function resolveBaseCommitSha(params) {
   let parents;
   try {
     parents = await params.api.getCommitParents({
@@ -100153,11 +100153,11 @@ function baseShaSegment(meta) {
   return `[${code}](${base}/commit/${encodeURIComponent(sha)})`;
 }
 function staleBaselineNote(meta) {
-  const mergeBaseSha = meta.mergeBaseShortSha?.trim();
-  if (!mergeBaseSha) return void 0;
-  const mergeBase = codeSpan(mergeBaseSha);
+  const baseCommitSha = meta.baseCommitShortSha?.trim();
+  if (!baseCommitSha) return void 0;
+  const baseCommit = codeSpan(baseCommitSha);
   const baseline = baseShaSegment(meta) ?? "The baseline";
-  return `\u26A0\uFE0F Baseline ${baseline} isn't this PR's merge base ${mergeBase}: no successful baseline run exists for ${mergeBase}, so deltas may include changes already on ${codeSpan(meta.baseBranch)}. A re-run helps only after a push run for ${mergeBase} itself succeeds.`;
+  return `\u26A0\uFE0F Baseline ${baseline} isn't this PR's base commit ${baseCommit}: no successful baseline run exists for ${baseCommit}, so deltas may include changes already on ${codeSpan(meta.baseBranch)}. A re-run helps only after a push run for ${baseCommit} itself succeeds.`;
 }
 var FULL_SHA = /^[0-9a-f]{40}$/i;
 var SAFE_ACTION_URL = /^https:\/\/github\.com\/[^\s()<>]+$/;
@@ -100747,7 +100747,7 @@ function buildReportMeta(params) {
     slug: params.slug,
     baseBranch: params.baseBranch,
     baseShortSha: params.baseShortSha,
-    mergeBaseShortSha: params.mergeBaseShortSha,
+    baseCommitShortSha: params.baseCommitShortSha,
     compression: params.inputs.compression,
     significantChangeBytes: parseByteSize(params.inputs.significantChange),
     thresholds: params.thresholds,
@@ -100772,7 +100772,7 @@ async function resolveBaseline(params) {
         comparison: compareBundleReports(params.head, void 0),
         baseBranch,
         baseShortSha: void 0,
-        mergeBaseShortSha: void 0,
+        baseCommitShortSha: void 0,
         warning: void 0
       };
     }
@@ -100784,24 +100784,24 @@ async function resolveBaseline(params) {
         comparison: compareBundleReports(params.head, void 0),
         baseBranch,
         baseShortSha: void 0,
-        mergeBaseShortSha: void 0,
+        baseCommitShortSha: void 0,
         warning: void 0
       };
     }
     let preferredHeadSha;
     if (params.pullRequestBaseRef !== void 0 && baseBranch === params.pullRequestBaseRef) {
-      const mergeBase = await resolveMergeBaseSha({
+      const baseCommit = await resolveBaseCommitSha({
         api: params.api,
         owner: params.owner,
         repo: params.repo,
         sha: params.sha,
         payloadBaseSha: params.payloadBaseSha
       });
-      if (mergeBase) {
-        preferredHeadSha = mergeBase.sha;
-        if (mergeBase.source === "payload") {
+      if (baseCommit) {
+        preferredHeadSha = baseCommit.sha;
+        if (baseCommit.source === "payload") {
           warning(
-            `Could not verify this PR's merge base via the commits API (sha ${params.sha.slice(0, 7)}); using the pull_request event's base.sha (${mergeBase.sha.slice(0, 7)}) instead.`
+            `Could not verify this PR's base commit via the commits API (sha ${params.sha.slice(0, 7)}); using the pull_request event's base.sha (${baseCommit.sha.slice(0, 7)}) instead.`
           );
         }
       }
@@ -100821,7 +100821,7 @@ async function resolveBaseline(params) {
         comparison: compareBundleReports(params.head, void 0),
         baseBranch,
         baseShortSha: void 0,
-        mergeBaseShortSha: void 0,
+        baseCommitShortSha: void 0,
         warning: void 0
       };
     }
@@ -100837,12 +100837,12 @@ async function resolveBaseline(params) {
     const baseShortSha = match.headSha.slice(0, 7);
     if (result.status === "found") {
       const comparison = compareBundleReports(params.head, result.report);
-      const staleMergeBaseSha = preferredHeadSha !== void 0 && match.headSha !== preferredHeadSha ? preferredHeadSha : void 0;
+      const staleBaseCommitSha = preferredHeadSha !== void 0 && match.headSha !== preferredHeadSha ? preferredHeadSha : void 0;
       return {
-        comparison: staleMergeBaseSha !== void 0 ? markBaselineStale(comparison) : comparison,
+        comparison: staleBaseCommitSha !== void 0 ? markBaselineStale(comparison) : comparison,
         baseBranch,
         baseShortSha,
-        mergeBaseShortSha: staleMergeBaseSha?.slice(0, 7),
+        baseCommitShortSha: staleBaseCommitSha?.slice(0, 7),
         warning: void 0
       };
     }
@@ -100851,7 +100851,7 @@ async function resolveBaseline(params) {
       comparison: buildUnreadableBaselineComparison(params.head),
       baseBranch,
       baseShortSha,
-      mergeBaseShortSha: void 0,
+      baseCommitShortSha: void 0,
       warning: void 0
     };
   } catch (error2) {
@@ -100862,7 +100862,7 @@ async function resolveBaseline(params) {
       comparison: compareBundleReports(params.head, void 0),
       baseBranch: baseBranch ?? params.pullRequestBaseRef ?? "unknown",
       baseShortSha: void 0,
-      mergeBaseShortSha: void 0,
+      baseCommitShortSha: void 0,
       warning: warning2
     };
   }
@@ -100919,7 +100919,7 @@ async function run() {
       const pullRequest = context5.payload.pull_request;
       const repositoryId = context5.payload.repository?.id;
       const api = createGithubApi(getOctokit(inputs.githubToken));
-      const { comparison, baseBranch, baseShortSha, mergeBaseShortSha, warning: warning2 } = await resolveBaseline({
+      const { comparison, baseBranch, baseShortSha, baseCommitShortSha, warning: warning2 } = await resolveBaseline({
         api,
         inputs,
         owner: context5.repo.owner,
@@ -100939,7 +100939,7 @@ async function run() {
         slug,
         baseBranch,
         baseShortSha,
-        mergeBaseShortSha,
+        baseCommitShortSha,
         head,
         thresholds,
         actionVersion,
@@ -100981,7 +100981,7 @@ async function run() {
         slug,
         baseBranch,
         baseShortSha: void 0,
-        mergeBaseShortSha: void 0,
+        baseCommitShortSha: void 0,
         head,
         thresholds,
         actionVersion,
