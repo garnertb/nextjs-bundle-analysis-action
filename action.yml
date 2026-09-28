@@ -99,7 +99,7 @@ outputs:
   status:
     description: 'Overall status: pass, warn, or fail.'
   baseline-status:
-    description: 'Baseline lookup status: found, missing, or incompatible.'
+    description: 'Baseline lookup status: found, stale, missing, or incompatible.'
   total-size:
     description: 'Total compressed client JS size in bytes (union of all route files).'
   total-delta:

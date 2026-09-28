@@ -120,6 +120,7 @@ function runReport(flags: Flags): void {
     slug: slugify(name),
     baseBranch: optionalString(flags, 'base-branch') ?? 'main',
     baseShortSha: optionalString(flags, 'base-sha'),
+    baseCommitShortSha: undefined,
     compression: head.fingerprint.compression,
     significantChangeBytes: parseByteSize(optionalString(flags, 'significant-change') ?? '512B'),
     thresholds: config,

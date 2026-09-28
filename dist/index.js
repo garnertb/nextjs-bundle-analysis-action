@@ -99566,6 +99566,9 @@ import { readFile } from "node:fs/promises";
 import { join as join4 } from "node:path";
 
 // src/report/compare.ts
+function isComparableBaseline(status) {
+  return status === "found" || status === "stale";
+}
 function routeKey(router, route) {
   return `${router}:${route}`;
 }
@@ -99645,22 +99648,26 @@ function toThresholdInput(comparison) {
     totalHead: comparison.totalAfter,
     totalBase: comparison.totalBefore,
     sharedHead,
-    baselineComparable: comparison.baselineStatus === "found"
+    baselineComparable: isComparableBaseline(comparison.baselineStatus)
   };
+}
+function markBaselineStale(comparison) {
+  if (comparison.baselineStatus !== "found") return comparison;
+  return { ...comparison, baselineStatus: "stale" };
 }
 
 // src/github/baseline.ts
 var DEFAULT_MAX_RUNS = 100;
-async function findBaselineArtifact(params) {
-  const maxRuns = params.maxRuns ?? DEFAULT_MAX_RUNS;
+async function searchTrustedRuns(params) {
   let checked = 0;
   for await (const run2 of params.api.listWorkflowRuns({
     owner: params.owner,
     repo: params.repo,
     workflowFile: params.workflowFile,
-    branch: params.branch
+    branch: params.branch,
+    headSha: params.headSha
   })) {
-    if (checked >= maxRuns) break;
+    if (checked >= params.maxRuns) break;
     checked++;
     if (run2.headRepositoryId !== params.repositoryId) continue;
     const artifacts = await params.api.listWorkflowRunArtifacts({
@@ -99676,6 +99683,40 @@ async function findBaselineArtifact(params) {
     }
   }
   return void 0;
+}
+async function findBaselineArtifact(params) {
+  const maxRuns = params.maxRuns ?? DEFAULT_MAX_RUNS;
+  const shared = {
+    api: params.api,
+    owner: params.owner,
+    repo: params.repo,
+    workflowFile: params.workflowFile,
+    branch: params.branch,
+    artifactName: params.artifactName,
+    repositoryId: params.repositoryId,
+    maxRuns
+  };
+  if (params.preferredHeadSha) {
+    const exact = await searchTrustedRuns({ ...shared, headSha: params.preferredHeadSha });
+    if (exact) return exact;
+  }
+  return searchTrustedRuns({ ...shared, headSha: void 0 });
+}
+async function resolveBaseCommitSha(params) {
+  let parents;
+  try {
+    parents = await params.api.getCommitParents({
+      owner: params.owner,
+      repo: params.repo,
+      sha: params.sha
+    });
+  } catch {
+    parents = void 0;
+  }
+  if (parents?.length === 2) {
+    return { sha: parents[0], source: "merge-commit" };
+  }
+  return params.payloadBaseSha ? { sha: params.payloadBaseSha, source: "payload" } : void 0;
 }
 function isBundleReport(value) {
   if (typeof value !== "object" || value === null) return false;
@@ -99769,7 +99810,8 @@ async function* listWorkflowRuns(octokit, params) {
     branch: params.branch,
     event: "push",
     status: "success",
-    per_page: WORKFLOW_RUNS_PAGE_SIZE
+    per_page: WORKFLOW_RUNS_PAGE_SIZE,
+    ...params.headSha !== void 0 ? { head_sha: params.headSha } : {}
   });
   for await (const { data: runs } of iterator2) {
     for (const run2 of runs) {
@@ -99835,6 +99877,14 @@ async function getDefaultBranch(octokit, params) {
   const { data } = await octokit.rest.repos.get({ owner: params.owner, repo: params.repo });
   return data.default_branch;
 }
+async function getCommitParents(octokit, params) {
+  const { data } = await octokit.rest.git.getCommit({
+    owner: params.owner,
+    repo: params.repo,
+    commit_sha: params.sha
+  });
+  return data.parents.map((parent) => parent.sha);
+}
 function createGithubApi(octokit) {
   return {
     listWorkflowRuns: (params) => listWorkflowRuns(octokit, params),
@@ -99843,7 +99893,8 @@ function createGithubApi(octokit) {
     createIssueComment: (params) => createIssueComment(octokit, params),
     updateIssueComment: (params) => updateIssueComment(octokit, params),
     getAuthenticatedLogin: () => getAuthenticatedLogin(octokit),
-    getDefaultBranch: (params) => getDefaultBranch(octokit, params)
+    getDefaultBranch: (params) => getDefaultBranch(octokit, params),
+    getCommitParents: (params) => getCommitParents(octokit, params)
   };
 }
 
@@ -100101,6 +100152,13 @@ function baseShaSegment(meta) {
   const base = escapeCell(meta.repoUrl).replace(/\/+$/, "");
   return `[${code}](${base}/commit/${encodeURIComponent(sha)})`;
 }
+function staleBaselineNote(meta) {
+  const baseCommitSha = meta.baseCommitShortSha?.trim();
+  if (!baseCommitSha) return void 0;
+  const baseCommit = codeSpan(baseCommitSha);
+  const baseline = baseShaSegment(meta) ?? "The baseline";
+  return `\u26A0\uFE0F Baseline ${baseline} isn't this PR's base commit ${baseCommit}: no usable trusted baseline artifact exists for ${baseCommit}, so deltas may include changes already on ${codeSpan(meta.baseBranch)}. A re-run helps only after a push run for ${baseCommit} itself uploads one.`;
+}
 var FULL_SHA = /^[0-9a-f]{40}$/i;
 var SAFE_ACTION_URL = /^https:\/\/github\.com\/[^\s()<>]+$/;
 function actionVersionSegment(meta) {
@@ -100112,7 +100170,8 @@ function actionVersionSegment(meta) {
 }
 function statusIcon(findings, baselineStatus) {
   if (findings.some((f) => f.level === "fail")) return "\u274C";
-  if (findings.some((f) => f.level === "warn") || baselineStatus === "incompatible") return "\u26A0\uFE0F";
+  if (findings.some((f) => f.level === "warn") || baselineStatus === "incompatible" || baselineStatus === "stale")
+    return "\u26A0\uFE0F";
   if (baselineStatus === "missing" && findings.length === 0) return "\u2139\uFE0F";
   return "\u2705";
 }
@@ -100340,13 +100399,13 @@ function computeRouteIncreaseFindingRoutes(findings) {
   return new Set(findings.filter((f) => f.check === "Route increase").map((f) => f.route));
 }
 function computeSignificantRoutes(comparison, routeIncreaseFindingRoutes, meta) {
-  if (comparison.baselineStatus !== "found") return [];
+  if (!isComparableBaseline(comparison.baselineStatus)) return [];
   return comparison.routes.filter(
     (r) => !r.added && r.deltaBytes !== void 0 && (Math.abs(r.deltaBytes) >= meta.significantChangeBytes || routeIncreaseFindingRoutes.has(r.route))
   ).sort((a, b) => Math.abs(b.deltaBytes ?? 0) - Math.abs(a.deltaBytes ?? 0));
 }
 function buildBlocks(comparison, findings, meta, options) {
-  const comparable = comparison.baselineStatus === "found";
+  const comparable = isComparableBaseline(comparison.baselineStatus);
   const failureCount = findings.filter((f) => f.level === "fail").length;
   const warningCount = findings.filter((f) => f.level === "warn").length;
   const findingLevelByRoute = computeFindingLevelByRoute(findings);
@@ -100365,8 +100424,8 @@ ${title}`];
     const changedSegment = significant.length === 0 && addedRoutes.length === 0 && comparison.removed.length === 0 ? `no route changed by \u2265 ${formatConfiguredBytes(meta.significantChangeBytes)}` : `${significant.length} changed \xB7 ${addedRoutes.length} added \xB7 ${comparison.removed.length} removed`;
     const findingsPhrase = findingCountsPhrase(failureCount, warningCount);
     const lineB = `${comparison.routes.length} routes \xB7 ${changedSegment} \xB7 ${failureCount + warningCount > 0 ? `**${findingsPhrase}**` : findingsPhrase}`;
-    blocks2.push(`${lineA}
-${lineB}`);
+    const staleNote = comparison.baselineStatus === "stale" ? staleBaselineNote(meta) : void 0;
+    blocks2.push([lineA, lineB, staleNote].filter((line) => line !== void 0).join("\n"));
   } else {
     const lineA = `${totalLine} \xB7 ${comparison.routes.length} routes \xB7 ${findingCountsPhrase(failureCount, warningCount)}`;
     const statusLine = comparison.baselineStatus === "missing" ? `No baseline from ${codeSpan(meta.baseBranch)} yet. One is created on the next successful push to ${codeSpan(meta.baseBranch)}. Absolute budgets were still checked.${meta.baselineWarning ? ` (${escapeCell(meta.baselineWarning)})` : ""}` : `${baseSha ? `Baseline ${baseSha}` : "The baseline"} was measured with ${comparison.incompatibility?.baseCompression} / collector v${comparison.incompatibility?.baseCollectorVersion} (now ${comparison.incompatibility?.headCompression} / collector v${comparison.incompatibility?.headCollectorVersion}), so deltas are skipped this run. Absolute budgets were still checked.`;
@@ -100688,6 +100747,7 @@ function buildReportMeta(params) {
     slug: params.slug,
     baseBranch: params.baseBranch,
     baseShortSha: params.baseShortSha,
+    baseCommitShortSha: params.baseCommitShortSha,
     compression: params.inputs.compression,
     significantChangeBytes: parseByteSize(params.inputs.significantChange),
     thresholds: params.thresholds,
@@ -100712,6 +100772,7 @@ async function resolveBaseline(params) {
         comparison: compareBundleReports(params.head, void 0),
         baseBranch,
         baseShortSha: void 0,
+        baseCommitShortSha: void 0,
         warning: void 0
       };
     }
@@ -100723,8 +100784,27 @@ async function resolveBaseline(params) {
         comparison: compareBundleReports(params.head, void 0),
         baseBranch,
         baseShortSha: void 0,
+        baseCommitShortSha: void 0,
         warning: void 0
       };
+    }
+    let preferredHeadSha;
+    if (params.pullRequestBaseRef !== void 0 && baseBranch === params.pullRequestBaseRef) {
+      const baseCommit = await resolveBaseCommitSha({
+        api: params.api,
+        owner: params.owner,
+        repo: params.repo,
+        sha: params.sha,
+        payloadBaseSha: params.payloadBaseSha
+      });
+      if (baseCommit) {
+        preferredHeadSha = baseCommit.sha;
+        if (baseCommit.source === "payload") {
+          warning(
+            `Could not verify this PR's base commit via the commits API (sha ${params.sha.slice(0, 7)}); using the pull_request event's base.sha (${baseCommit.sha.slice(0, 7)}) instead.`
+          );
+        }
+      }
     }
     const match = await findBaselineArtifact({
       api: params.api,
@@ -100733,13 +100813,15 @@ async function resolveBaseline(params) {
       workflowFile,
       branch: baseBranch,
       artifactName: params.artifactName,
-      repositoryId: params.repositoryId
+      repositoryId: params.repositoryId,
+      preferredHeadSha
     });
     if (!match) {
       return {
         comparison: compareBundleReports(params.head, void 0),
         baseBranch,
         baseShortSha: void 0,
+        baseCommitShortSha: void 0,
         warning: void 0
       };
     }
@@ -100754,10 +100836,13 @@ async function resolveBaseline(params) {
     });
     const baseShortSha = match.headSha.slice(0, 7);
     if (result.status === "found") {
+      const comparison = compareBundleReports(params.head, result.report);
+      const staleBaseCommitSha = preferredHeadSha !== void 0 && match.headSha !== preferredHeadSha ? preferredHeadSha : void 0;
       return {
-        comparison: compareBundleReports(params.head, result.report),
+        comparison: staleBaseCommitSha !== void 0 ? markBaselineStale(comparison) : comparison,
         baseBranch,
         baseShortSha,
+        baseCommitShortSha: staleBaseCommitSha?.slice(0, 7),
         warning: void 0
       };
     }
@@ -100766,6 +100851,7 @@ async function resolveBaseline(params) {
       comparison: buildUnreadableBaselineComparison(params.head),
       baseBranch,
       baseShortSha,
+      baseCommitShortSha: void 0,
       warning: void 0
     };
   } catch (error2) {
@@ -100776,6 +100862,7 @@ async function resolveBaseline(params) {
       comparison: compareBundleReports(params.head, void 0),
       baseBranch: baseBranch ?? params.pullRequestBaseRef ?? "unknown",
       baseShortSha: void 0,
+      baseCommitShortSha: void 0,
       warning: warning2
     };
   }
@@ -100832,7 +100919,7 @@ async function run() {
       const pullRequest = context5.payload.pull_request;
       const repositoryId = context5.payload.repository?.id;
       const api = createGithubApi(getOctokit(inputs.githubToken));
-      const { comparison, baseBranch, baseShortSha, warning: warning2 } = await resolveBaseline({
+      const { comparison, baseBranch, baseShortSha, baseCommitShortSha, warning: warning2 } = await resolveBaseline({
         api,
         inputs,
         owner: context5.repo.owner,
@@ -100841,7 +100928,9 @@ async function run() {
         head,
         pullRequestBaseRef: pullRequest?.base?.ref,
         repositoryId,
-        slug
+        slug,
+        sha: context5.sha,
+        payloadBaseSha: pullRequest?.base?.sha
       });
       const findings = evaluateThresholds(toThresholdInput(comparison), thresholds);
       const meta = buildReportMeta({
@@ -100850,6 +100939,7 @@ async function run() {
         slug,
         baseBranch,
         baseShortSha,
+        baseCommitShortSha,
         head,
         thresholds,
         actionVersion,
@@ -100891,6 +100981,7 @@ async function run() {
         slug,
         baseBranch,
         baseShortSha: void 0,
+        baseCommitShortSha: void 0,
         head,
         thresholds,
         actionVersion,

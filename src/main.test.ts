@@ -10,7 +10,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { BundleReport } from './collectors/types.js';
-import type { GithubApi } from './github/types.js';
+import type { ArtifactSummary, GithubApi, WorkflowRunSummary } from './github/types.js';
 
 const FIXTURE_NEXT_DIR = 'fixtures/next/15-webpack/mixed';
 
@@ -43,6 +43,7 @@ vi.mock('@actions/core', () => ({
 interface FakeContext {
   eventName: string;
   ref: string;
+  sha: string;
   serverUrl: string;
   runId: number;
   repo: { owner: string; repo: string };
@@ -54,6 +55,7 @@ const contextState = vi.hoisted<{ current: FakeContext }>(() => ({
   current: {
     eventName: 'push',
     ref: 'refs/heads/main',
+    sha: 'headcommit0000000000000000000000000000',
     serverUrl: 'https://github.com',
     runId: 123,
     repo: { owner: 'octocat', repo: 'demo' },
@@ -134,6 +136,7 @@ function fakeGithubApi(overrides: Partial<GithubApi> = {}): GithubApi {
     updateIssueComment: vi.fn(async () => {}),
     getAuthenticatedLogin: async () => undefined,
     getDefaultBranch: async () => 'main',
+    getCommitParents: vi.fn(async () => []),
     ...overrides,
   };
 }
@@ -155,6 +158,7 @@ describe('run', () => {
     contextState.current = {
       eventName: 'push',
       ref: 'refs/heads/main',
+      sha: 'headcommit0000000000000000000000000000',
       serverUrl: 'https://github.com',
       runId: 123,
       repo: { owner: 'octocat', repo: 'demo' },
@@ -249,6 +253,177 @@ describe('run', () => {
     expect(api.createIssueComment).toHaveBeenCalledOnce();
     expect(api.updateIssueComment).not.toHaveBeenCalled();
   });
+
+  function fakeGithubApiFilteringByHeadSha(
+    runs: WorkflowRunSummary[],
+    artifactsByRunId: Record<number, ArtifactSummary[]>,
+    overrides: Partial<GithubApi> = {},
+  ): GithubApi {
+    return fakeGithubApi({
+      listWorkflowRuns: async function* (params) {
+        for (const run of runs) {
+          if (params.headSha !== undefined && run.headSha !== params.headSha) continue;
+          yield run;
+        }
+      },
+      listWorkflowRunArtifacts: async (params) => artifactsByRunId[params.runId] ?? [],
+      ...overrides,
+    });
+  }
+
+  function mockBaselineDownload(): void {
+    const baselineReport = collectBundleReport(FIXTURE_NEXT_DIR + '/.next', {
+      compression: 'gzip',
+    });
+    artifactState.downloadArtifact.mockImplementation(
+      async (_id: number, options: { path?: string }) => {
+        const dir = options.path!;
+        mkdirSync(dir, { recursive: true });
+        writeFileSync(join(dir, 'bundle-sizes.json'), JSON.stringify(baselineReport));
+        return { downloadPath: dir };
+      },
+    );
+  }
+
+  const BASE_COMMIT_SHA = 'basecommit111111111111111111111111111';
+  const PR_HEAD_SHA = 'prhead222222222222222222222222222222';
+  const NEWER_PUSH_SHA = 'newerpush33333333333333333333333333';
+  const PAYLOAD_BASE_SHA = 'payloadbase0000000000000000000000000';
+
+  function setUpBaseCommitPullRequest(payloadBaseSha: string | undefined): void {
+    contextState.current.eventName = 'pull_request';
+    contextState.current.sha = 'headcommit0000000000000000000000000000';
+    contextState.current.payload = {
+      pull_request: { base: { ref: 'main', sha: payloadBaseSha } },
+      repository: { id: 555 },
+    };
+    contextState.current.issue = { owner: 'octocat', repo: 'demo', number: 42 };
+    process.env['GITHUB_WORKFLOW_REF'] = 'octocat/demo/.github/workflows/ci.yml@refs/heads/main';
+  }
+
+  it("prefers an exact match on the PR's base commit over a newer push run (baseline-status: found)", async () => {
+    setUpBaseCommitPullRequest(PAYLOAD_BASE_SHA);
+    mockBaselineDownload();
+
+    const api = fakeGithubApiFilteringByHeadSha(
+      [
+        { id: 2, headSha: NEWER_PUSH_SHA, headRepositoryId: 555 },
+        { id: 1, headSha: BASE_COMMIT_SHA, headRepositoryId: 555 },
+      ],
+      {
+        1: [{ id: 10, name: 'next-bundle-sizes-test-app', expired: false }],
+        2: [{ id: 20, name: 'next-bundle-sizes-test-app', expired: false }],
+      },
+      { getCommitParents: vi.fn(async () => [BASE_COMMIT_SHA, PR_HEAD_SHA]) },
+    );
+    apiState.fakeApi = api;
+
+    await run();
+
+    expect(outputValue('baseline-status')).toBe('found');
+    expect(api.getCommitParents).toHaveBeenCalledWith(
+      expect.objectContaining({ sha: contextState.current.sha }),
+    );
+  });
+
+  it('falls back to the latest trusted run and reports a stale baseline when the base commit has no run', async () => {
+    setUpBaseCommitPullRequest(PAYLOAD_BASE_SHA);
+    mockBaselineDownload();
+
+    const api = fakeGithubApiFilteringByHeadSha(
+      [{ id: 2, headSha: NEWER_PUSH_SHA, headRepositoryId: 555 }],
+      { 2: [{ id: 20, name: 'next-bundle-sizes-test-app', expired: false }] },
+      { getCommitParents: vi.fn(async () => [BASE_COMMIT_SHA, PR_HEAD_SHA]) },
+    );
+    apiState.fakeApi = api;
+
+    await run();
+
+    expect(outputValue('baseline-status')).toBe('stale');
+    expect(outputValue('total-delta')).not.toBe('');
+    expect(outputValue('total-delta')).not.toBeUndefined();
+  });
+
+  it.each([
+    [
+      'a getCommit API error',
+      async () => Promise.reject(Object.assign(new Error('Not Found'), { status: 404 })),
+    ],
+    ['a commit with a single parent (linear history)', async () => [BASE_COMMIT_SHA]],
+    [
+      'a commit with three parents (octopus merge)',
+      async () => [BASE_COMMIT_SHA, PR_HEAD_SHA, 'thirdparent4444444444444444444444444'],
+    ],
+  ])(
+    "falls back to the payload's base sha and warns when the base commit can't be resolved (%s)",
+    async (_label, getCommitParentsImpl) => {
+      setUpBaseCommitPullRequest(PAYLOAD_BASE_SHA);
+      mockBaselineDownload();
+
+      const api = fakeGithubApiFilteringByHeadSha(
+        [{ id: 1, headSha: PAYLOAD_BASE_SHA, headRepositoryId: 555 }],
+        { 1: [{ id: 10, name: 'next-bundle-sizes-test-app', expired: false }] },
+        { getCommitParents: vi.fn(getCommitParentsImpl) },
+      );
+      apiState.fakeApi = api;
+      const core = await import('@actions/core');
+      const warningCallsBefore = vi.mocked(core.warning).mock.calls.length;
+
+      await run();
+
+      expect(outputValue('baseline-status')).toBe('found');
+      expect(vi.mocked(core.warning).mock.calls.length).toBeGreaterThan(warningCallsBefore);
+    },
+  );
+
+  it("still resolves the base commit when base-branch input matches the PR's base ref", async () => {
+    coreState.inputs = defaultInputs({ 'base-branch': 'main' });
+    setUpBaseCommitPullRequest(PAYLOAD_BASE_SHA);
+    mockBaselineDownload();
+
+    const api = fakeGithubApiFilteringByHeadSha(
+      [{ id: 1, headSha: BASE_COMMIT_SHA, headRepositoryId: 555 }],
+      { 1: [{ id: 10, name: 'next-bundle-sizes-test-app', expired: false }] },
+      { getCommitParents: vi.fn(async () => [BASE_COMMIT_SHA, PR_HEAD_SHA]) },
+    );
+    apiState.fakeApi = api;
+
+    await run();
+
+    expect(api.getCommitParents).toHaveBeenCalled();
+    expect(outputValue('baseline-status')).toBe('found');
+  });
+
+  it("skips base-commit resolution when base-branch overrides the PR's actual base branch", async () => {
+    coreState.inputs = defaultInputs({ 'base-branch': 'develop' });
+    setUpBaseCommitPullRequest(PAYLOAD_BASE_SHA);
+    mockBaselineDownload();
+
+    const api = fakeGithubApiFilteringByHeadSha(
+      [{ id: 1, headSha: 'developheadsha00000000000000000000000', headRepositoryId: 555 }],
+      { 1: [{ id: 10, name: 'next-bundle-sizes-test-app', expired: false }] },
+      { getCommitParents: vi.fn(async () => [BASE_COMMIT_SHA, PR_HEAD_SHA]) },
+    );
+    apiState.fakeApi = api;
+
+    await run();
+
+    expect(api.getCommitParents).not.toHaveBeenCalled();
+    expect(outputValue('baseline-status')).toBe('found');
+  });
+
+  it.each(['push', 'workflow_dispatch'])(
+    'never calls getCommitParents or looks up a baseline on a %s event',
+    async (eventName) => {
+      contextState.current.eventName = eventName;
+      const getCommitParents = vi.fn(async () => [BASE_COMMIT_SHA, PR_HEAD_SHA]);
+      apiState.fakeApi = fakeGithubApi({ getCommitParents });
+
+      await run();
+
+      expect(getCommitParents).not.toHaveBeenCalled();
+    },
+  );
 
   it('reports a missing baseline when no matching run is found', async () => {
     contextState.current.eventName = 'pull_request';

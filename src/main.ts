@@ -13,7 +13,11 @@ import {
   uploadSizesArtifact,
 } from './github/artifact.js';
 import { createGithubApi } from './github/api.js';
-import { buildUnreadableBaselineComparison, findBaselineArtifact } from './github/baseline.js';
+import {
+  buildUnreadableBaselineComparison,
+  findBaselineArtifact,
+  resolveBaseCommitSha,
+} from './github/baseline.js';
 import { runBuildCommand } from './github/build.js';
 import { resolveTrustedCommentAuthors, upsertComment } from './github/comment.js';
 import { buildJobSummaryUrl, writeJobSummary } from './github/summary.js';
@@ -21,7 +25,12 @@ import type { GithubApi } from './github/types.js';
 import { parseWorkflowFileFromRef } from './github/workflow-ref.js';
 import { parseInputs, type ActionInputs, type RawInputs } from './inputs.js';
 import { buildActionUrl } from './report/action-url.js';
-import { compareBundleReports, toThresholdInput, type Comparison } from './report/compare.js';
+import {
+  compareBundleReports,
+  markBaselineStale,
+  toThresholdInput,
+  type Comparison,
+} from './report/compare.js';
 import { renderFullReport, renderReport, type ReportMeta } from './report/render.js';
 import { slugify } from './slug.js';
 import { evaluateThresholds } from './thresholds/evaluate.js';
@@ -136,6 +145,7 @@ interface BuildMetaParams {
   slug: string;
   baseBranch: string;
   baseShortSha: string | undefined;
+  baseCommitShortSha: string | undefined;
   head: { nextVersion: string | undefined; bundler: string | undefined };
   thresholds: ThresholdConfig;
   actionVersion: string;
@@ -151,6 +161,7 @@ function buildReportMeta(params: BuildMetaParams): ReportMeta {
     slug: params.slug,
     baseBranch: params.baseBranch,
     baseShortSha: params.baseShortSha,
+    baseCommitShortSha: params.baseCommitShortSha,
     compression: params.inputs.compression,
     significantChangeBytes: parseByteSize(params.inputs.significantChange),
     thresholds: params.thresholds,
@@ -175,12 +186,18 @@ interface ResolveBaselineParams {
   pullRequestBaseRef: string | undefined;
   repositoryId: number | undefined;
   slug: string;
+  /** The PR build's own commit (`github.context.sha`), used to resolve the base commit. */
+  sha: string;
+  /** The event payload's `pull_request.base.sha`, the base-commit fallback source. */
+  payloadBaseSha: string | undefined;
 }
 
 interface ResolvedBaseline {
   comparison: Comparison;
   baseBranch: string;
   baseShortSha: string | undefined;
+  /** Set only when the baseline was marked `stale`, naming the PR's actual base commit. */
+  baseCommitShortSha: string | undefined;
   /** Set when the lookup itself errored, so the caller can surface it in the report. */
   warning: string | undefined;
 }
@@ -200,6 +217,7 @@ async function resolveBaseline(params: ResolveBaselineParams): Promise<ResolvedB
         comparison: compareBundleReports(params.head, undefined),
         baseBranch,
         baseShortSha: undefined,
+        baseCommitShortSha: undefined,
         warning: undefined,
       };
     }
@@ -211,8 +229,33 @@ async function resolveBaseline(params: ResolveBaselineParams): Promise<ResolvedB
         comparison: compareBundleReports(params.head, undefined),
         baseBranch,
         baseShortSha: undefined,
+        baseCommitShortSha: undefined,
         warning: undefined,
       };
+    }
+
+    // The merge parent is only meaningful when the branch being searched is
+    // actually the PR's base branch; an explicit `base-branch` override
+    // searches a different branch, whose tip isn't `sha`'s parent.
+    let preferredHeadSha: string | undefined;
+    if (params.pullRequestBaseRef !== undefined && baseBranch === params.pullRequestBaseRef) {
+      const baseCommit = await resolveBaseCommitSha({
+        api: params.api,
+        owner: params.owner,
+        repo: params.repo,
+        sha: params.sha,
+        payloadBaseSha: params.payloadBaseSha,
+      });
+      if (baseCommit) {
+        preferredHeadSha = baseCommit.sha;
+        if (baseCommit.source === 'payload') {
+          core.warning(
+            "Could not verify this PR's base commit via the commits API " +
+              `(sha ${params.sha.slice(0, 7)}); using the pull_request event's base.sha ` +
+              `(${baseCommit.sha.slice(0, 7)}) instead.`,
+          );
+        }
+      }
     }
 
     const match = await findBaselineArtifact({
@@ -223,12 +266,14 @@ async function resolveBaseline(params: ResolveBaselineParams): Promise<ResolvedB
       branch: baseBranch,
       artifactName: params.artifactName,
       repositoryId: params.repositoryId,
+      preferredHeadSha,
     });
     if (!match) {
       return {
         comparison: compareBundleReports(params.head, undefined),
         baseBranch,
         baseShortSha: undefined,
+        baseCommitShortSha: undefined,
         warning: undefined,
       };
     }
@@ -244,10 +289,16 @@ async function resolveBaseline(params: ResolveBaselineParams): Promise<ResolvedB
     });
     const baseShortSha = match.headSha.slice(0, 7);
     if (result.status === 'found') {
+      const comparison = compareBundleReports(params.head, result.report);
+      const staleBaseCommitSha =
+        preferredHeadSha !== undefined && match.headSha !== preferredHeadSha
+          ? preferredHeadSha
+          : undefined;
       return {
-        comparison: compareBundleReports(params.head, result.report),
+        comparison: staleBaseCommitSha !== undefined ? markBaselineStale(comparison) : comparison,
         baseBranch,
         baseShortSha,
+        baseCommitShortSha: staleBaseCommitSha?.slice(0, 7),
         warning: undefined,
       };
     }
@@ -256,6 +307,7 @@ async function resolveBaseline(params: ResolveBaselineParams): Promise<ResolvedB
       comparison: buildUnreadableBaselineComparison(params.head),
       baseBranch,
       baseShortSha,
+      baseCommitShortSha: undefined,
       warning: undefined,
     };
   } catch (error) {
@@ -268,6 +320,7 @@ async function resolveBaseline(params: ResolveBaselineParams): Promise<ResolvedB
       comparison: compareBundleReports(params.head, undefined),
       baseBranch: baseBranch ?? params.pullRequestBaseRef ?? 'unknown',
       baseShortSha: undefined,
+      baseCommitShortSha: undefined,
       warning,
     };
   }
@@ -330,21 +383,25 @@ export async function run(): Promise<void> {
       : undefined;
 
     if (eventName === 'pull_request') {
-      const pullRequest = context.payload.pull_request as { base?: { ref?: string } } | undefined;
+      const pullRequest = context.payload.pull_request as
+        { base?: { ref?: string; sha?: string } } | undefined;
       const repositoryId = (context.payload.repository as { id?: number } | undefined)?.id;
       const api = createGithubApi(github.getOctokit(inputs.githubToken));
 
-      const { comparison, baseBranch, baseShortSha, warning } = await resolveBaseline({
-        api,
-        inputs,
-        owner: context.repo.owner,
-        repo: context.repo.repo,
-        artifactName,
-        head,
-        pullRequestBaseRef: pullRequest?.base?.ref,
-        repositoryId,
-        slug,
-      });
+      const { comparison, baseBranch, baseShortSha, baseCommitShortSha, warning } =
+        await resolveBaseline({
+          api,
+          inputs,
+          owner: context.repo.owner,
+          repo: context.repo.repo,
+          artifactName,
+          head,
+          pullRequestBaseRef: pullRequest?.base?.ref,
+          repositoryId,
+          slug,
+          sha: context.sha,
+          payloadBaseSha: pullRequest?.base?.sha,
+        });
 
       const findings = evaluateThresholds(toThresholdInput(comparison), thresholds);
       const meta = buildReportMeta({
@@ -353,6 +410,7 @@ export async function run(): Promise<void> {
         slug,
         baseBranch,
         baseShortSha,
+        baseCommitShortSha,
         head,
         thresholds,
         actionVersion,
@@ -400,6 +458,7 @@ export async function run(): Promise<void> {
         slug,
         baseBranch,
         baseShortSha: undefined,
+        baseCommitShortSha: undefined,
         head,
         thresholds,
         actionVersion,

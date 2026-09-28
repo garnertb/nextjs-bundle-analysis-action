@@ -15,6 +15,7 @@ function fakeApi(comments: CommentSummary[]): GithubApi & {
     updateIssueComment: vi.fn(async () => {}),
     getAuthenticatedLogin: async () => undefined,
     getDefaultBranch: async () => 'main',
+    getCommitParents: async () => [],
   };
 }
 
