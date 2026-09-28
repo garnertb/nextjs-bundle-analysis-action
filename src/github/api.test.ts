@@ -24,6 +24,9 @@ function fakeOctokit(overrides: Record<string, unknown> = {}): Octokit {
       repos: {
         get: vi.fn(async () => ({ data: { default_branch: 'main' } })),
       },
+      git: {
+        getCommit: vi.fn(async () => ({ data: { parents: [] } })),
+      },
     },
   };
   return { ...base, ...overrides } as unknown as Octokit;
@@ -61,7 +64,49 @@ describe('createGithubApi', () => {
     ]);
     expect(octokit.paginate.iterator).toHaveBeenCalledWith(
       octokit.rest.actions.listWorkflowRuns,
-      expect.objectContaining({ owner: 'o', repo: 'r', workflow_id: 'ci.yml', branch: 'main' }),
+      expect.objectContaining({
+        owner: 'o',
+        repo: 'r',
+        workflow_id: 'ci.yml',
+        branch: 'main',
+        event: 'push',
+        status: 'success',
+      }),
+    );
+    expect(octokit.paginate.iterator).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ head_sha: expect.anything() }),
+    );
+  });
+
+  it('carries head_sha in the query params when set', async () => {
+    const octokit = fakeOctokit({
+      paginate: Object.assign(vi.fn(), { iterator: vi.fn(function* () {}) }),
+    });
+    const api = createGithubApi(octokit);
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- drains the async iterable
+    for await (const _run of api.listWorkflowRuns({
+      owner: 'o',
+      repo: 'r',
+      workflowFile: 'ci.yml',
+      branch: 'main',
+      headSha: 'exact-sha',
+    })) {
+      // no-op
+    }
+
+    expect(octokit.paginate.iterator).toHaveBeenCalledWith(
+      octokit.rest.actions.listWorkflowRuns,
+      expect.objectContaining({
+        owner: 'o',
+        repo: 'r',
+        workflow_id: 'ci.yml',
+        branch: 'main',
+        event: 'push',
+        status: 'success',
+        head_sha: 'exact-sha',
+      }),
     );
   });
 
@@ -166,5 +211,27 @@ describe('createGithubApi', () => {
     const api = createGithubApi(octokit);
 
     await expect(api.getDefaultBranch({ owner: 'o', repo: 'r' })).resolves.toBe('develop');
+  });
+
+  it('maps commit parent SHAs in order', async () => {
+    const octokit = fakeOctokit({
+      rest: {
+        git: {
+          getCommit: vi.fn(async () => ({
+            data: { parents: [{ sha: 'first-parent' }, { sha: 'second-parent' }] },
+          })),
+        },
+      },
+    });
+    const api = createGithubApi(octokit);
+
+    const parents = await api.getCommitParents({ owner: 'o', repo: 'r', sha: 'merge-sha' });
+
+    expect(parents).toEqual(['first-parent', 'second-parent']);
+    expect(octokit.rest.git.getCommit).toHaveBeenCalledWith({
+      owner: 'o',
+      repo: 'r',
+      commit_sha: 'merge-sha',
+    });
   });
 });

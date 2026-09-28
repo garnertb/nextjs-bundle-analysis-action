@@ -10,7 +10,7 @@ import { resolveRouteBudget } from '../thresholds/budgets-file.js';
 import type { Finding, FindingLevel, ThresholdConfig } from '../thresholds/types.js';
 import type { SizeOrPercent } from '../thresholds/size-value.js';
 import { codeSpan, escapeCell, escapeLinkText } from './escape.js';
-import type { Comparison, RouteRow } from './compare.js';
+import { isComparableBaseline, type Comparison, type RouteRow } from './compare.js';
 
 export interface ReportMeta {
   /** Display label, e.g. `web` (unslugged; the slug is only used for the hidden marker). */
@@ -19,6 +19,8 @@ export interface ReportMeta {
   baseBranch: string;
   /** Short SHA of the baseline commit; may be `undefined` even when a baseline exists (e.g. CLI without `--base-sha`). */
   baseShortSha: string | undefined;
+  /** Short SHA of the PR's actual merge base; set only when the baseline is `stale`, to name it in the stale note. */
+  mergeBaseShortSha: string | undefined;
   compression: CompressionAlgorithm;
   significantChangeBytes: number;
   thresholds: ThresholdConfig;
@@ -67,6 +69,25 @@ function baseShaSegment(meta: ReportMeta): string | undefined {
   return `[${code}](${base}/commit/${encodeURIComponent(sha)})`;
 }
 
+/**
+ * Warns that the baseline, though comparable, isn't this PR's actual merge
+ * base: no successful baseline run exists yet for that commit, so some of
+ * the reported delta may really belong to `baseBranch`, not the PR.
+ * `undefined` when there's no merge base SHA to name (shouldn't happen for
+ * a `stale` comparison, but keeps this function total).
+ */
+function staleBaselineNote(meta: ReportMeta): string | undefined {
+  const mergeBaseSha = meta.mergeBaseShortSha?.trim();
+  if (!mergeBaseSha) return undefined;
+  const mergeBase = codeSpan(mergeBaseSha);
+  const baseline = baseShaSegment(meta) ?? 'The baseline';
+  return (
+    `⚠️ Baseline ${baseline} isn't this PR's merge base ${mergeBase}: no successful baseline run ` +
+    `exists for ${mergeBase}, so deltas may include changes already on ${codeSpan(meta.baseBranch)}. ` +
+    `A re-run helps only after a push run for ${mergeBase} itself succeeds.`
+  );
+}
+
 const FULL_SHA = /^[0-9a-f]{40}$/i;
 const SAFE_ACTION_URL = /^https:\/\/github\.com\/[^\s()<>]+$/;
 
@@ -81,7 +102,12 @@ function actionVersionSegment(meta: ReportMeta): string {
 
 function statusIcon(findings: Finding[], baselineStatus: Comparison['baselineStatus']): string {
   if (findings.some((f) => f.level === 'fail')) return '❌';
-  if (findings.some((f) => f.level === 'warn') || baselineStatus === 'incompatible') return '⚠️';
+  if (
+    findings.some((f) => f.level === 'warn') ||
+    baselineStatus === 'incompatible' ||
+    baselineStatus === 'stale'
+  )
+    return '⚠️';
   if (baselineStatus === 'missing' && findings.length === 0) return 'ℹ️';
   return '✅';
 }
@@ -438,7 +464,7 @@ function computeSignificantRoutes(
   routeIncreaseFindingRoutes: Set<string>,
   meta: ReportMeta,
 ): RouteRow[] {
-  if (comparison.baselineStatus !== 'found') return [];
+  if (!isComparableBaseline(comparison.baselineStatus)) return [];
   return comparison.routes
     .filter(
       (r) =>
@@ -456,7 +482,7 @@ function buildBlocks(
   meta: ReportMeta,
   options: BuildOptions,
 ): string[] {
-  const comparable = comparison.baselineStatus === 'found';
+  const comparable = isComparableBaseline(comparison.baselineStatus);
   const failureCount = findings.filter((f) => f.level === 'fail').length;
   const warningCount = findings.filter((f) => f.level === 'warn').length;
   const findingLevelByRoute = computeFindingLevelByRoute(findings);
@@ -482,7 +508,8 @@ function buildBlocks(
         : `${significant.length} changed · ${addedRoutes.length} added · ${comparison.removed.length} removed`;
     const findingsPhrase = findingCountsPhrase(failureCount, warningCount);
     const lineB = `${comparison.routes.length} routes · ${changedSegment} · ${failureCount + warningCount > 0 ? `**${findingsPhrase}**` : findingsPhrase}`;
-    blocks.push(`${lineA}\n${lineB}`);
+    const staleNote = comparison.baselineStatus === 'stale' ? staleBaselineNote(meta) : undefined;
+    blocks.push([lineA, lineB, staleNote].filter((line) => line !== undefined).join('\n'));
   } else {
     const lineA = `${totalLine} · ${comparison.routes.length} routes · ${findingCountsPhrase(failureCount, warningCount)}`;
     const statusLine =

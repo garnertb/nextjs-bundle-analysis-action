@@ -3,6 +3,7 @@ import type {
   ArtifactSummary,
   CommentSummary,
   CreateCommentParams,
+  GetCommitParentsParams,
   GithubApi,
   IssueScopedParams,
   ListWorkflowRunsParams,
@@ -28,6 +29,7 @@ async function* listWorkflowRuns(
     event: 'push',
     status: 'success',
     per_page: WORKFLOW_RUNS_PAGE_SIZE,
+    ...(params.headSha !== undefined ? { head_sha: params.headSha } : {}),
   });
   for await (const { data: runs } of iterator) {
     for (const run of runs) {
@@ -111,6 +113,18 @@ async function getDefaultBranch(
   return data.default_branch;
 }
 
+async function getCommitParents(
+  octokit: Octokit,
+  params: GetCommitParentsParams,
+): Promise<string[]> {
+  const { data } = await octokit.rest.git.getCommit({
+    owner: params.owner,
+    repo: params.repo,
+    commit_sha: params.sha,
+  });
+  return data.parents.map((parent) => parent.sha);
+}
+
 /** Wraps a hydrated Octokit instance in the small {@link GithubApi} surface this action uses. */
 export function createGithubApi(octokit: Octokit): GithubApi {
   return {
@@ -121,5 +135,6 @@ export function createGithubApi(octokit: Octokit): GithubApi {
     updateIssueComment: (params) => updateIssueComment(octokit, params),
     getAuthenticatedLogin: () => getAuthenticatedLogin(octokit),
     getDefaultBranch: (params) => getDefaultBranch(octokit, params),
+    getCommitParents: (params) => getCommitParents(octokit, params),
   };
 }

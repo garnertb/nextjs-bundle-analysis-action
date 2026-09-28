@@ -1,6 +1,11 @@
 import type { BundleReport, RouteMeasurement } from '../collectors/types.js';
 import { COLLECTOR_VERSION, SCHEMA_VERSION } from '../collectors/types.js';
-import { compareBundleReports, toThresholdInput } from './compare.js';
+import {
+  compareBundleReports,
+  isComparableBaseline,
+  markBaselineStale,
+  toThresholdInput,
+} from './compare.js';
 
 function route(
   route: string,
@@ -162,5 +167,81 @@ describe('toThresholdInput', () => {
       { route: '/a', router: 'app', head: 500, base: undefined },
       { route: '/b', router: 'pages', head: 200, base: undefined },
     ]);
+  });
+
+  it('treats a stale baseline as comparable', () => {
+    const head = report({
+      total: 1200,
+      routers: { app: { shared: 110 } },
+      routes: [route('/a', 'app', 600, 500)],
+    });
+    const base = report({
+      total: 1000,
+      routers: { app: { shared: 100 } },
+      routes: [route('/a', 'app', 500, 400)],
+    });
+    const stale = markBaselineStale(compareBundleReports(head, base));
+    const input = toThresholdInput(stale);
+    expect(input.baselineComparable).toBe(true);
+    expect(input.routes[0]).toEqual({ route: '/a', router: 'app', head: 600, base: 500 });
+  });
+});
+
+describe('isComparableBaseline', () => {
+  it('is true for found and stale, false for missing and incompatible', () => {
+    expect(isComparableBaseline('found')).toBe(true);
+    expect(isComparableBaseline('stale')).toBe(true);
+    expect(isComparableBaseline('missing')).toBe(false);
+    expect(isComparableBaseline('incompatible')).toBe(false);
+  });
+});
+
+describe('markBaselineStale', () => {
+  it('switches a found baseline to stale, keeping the comparison data', () => {
+    const head = report({
+      total: 1200,
+      routers: { app: { shared: 110 } },
+      routes: [route('/a', 'app', 600, 500)],
+    });
+    const base = report({
+      total: 1000,
+      routers: { app: { shared: 100 } },
+      routes: [route('/a', 'app', 500, 400)],
+    });
+    const comparison = compareBundleReports(head, base);
+    const stale = markBaselineStale(comparison);
+    expect(stale.baselineStatus).toBe('stale');
+    expect(stale.totalDeltaBytes).toBe(comparison.totalDeltaBytes);
+    expect(stale.routes).toEqual(comparison.routes);
+  });
+
+  it('leaves a missing baseline as missing', () => {
+    const head = report({
+      total: 1000,
+      routers: { app: { shared: 100 } },
+      routes: [route('/', 'app', 500, 400)],
+    });
+    const comparison = compareBundleReports(head, undefined);
+    expect(markBaselineStale(comparison).baselineStatus).toBe('missing');
+  });
+
+  it('leaves an incompatible baseline as incompatible', () => {
+    const head = report({
+      total: 1000,
+      routers: { app: { shared: 100 } },
+      routes: [route('/', 'app', 500, 400)],
+    });
+    const base = report({
+      total: 900,
+      routers: { app: { shared: 90 } },
+      routes: [route('/', 'app', 450, 350)],
+      fingerprint: {
+        schemaVersion: SCHEMA_VERSION,
+        collectorVersion: COLLECTOR_VERSION,
+        compression: 'brotli',
+      },
+    });
+    const comparison = compareBundleReports(head, base);
+    expect(markBaselineStale(comparison).baselineStatus).toBe('incompatible');
   });
 });

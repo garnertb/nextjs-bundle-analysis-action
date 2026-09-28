@@ -25,6 +25,14 @@ export interface ListWorkflowRunsParams {
   repo: string;
   workflowFile: string;
   branch: string;
+  /** Filters to runs for this exact commit (`head_sha` REST query parameter); omitted when unset. */
+  headSha?: string | undefined;
+}
+
+export interface GetCommitParentsParams {
+  owner: string;
+  repo: string;
+  sha: string;
 }
 
 export interface RunScopedParams {
@@ -65,4 +73,6 @@ export interface GithubApi {
   /** `undefined` when the token can't call `GET /user` (e.g. the default `GITHUB_TOKEN`). */
   getAuthenticatedLogin(): Promise<string | undefined>;
   getDefaultBranch(params: { owner: string; repo: string }): Promise<string>;
+  /** Parent commit SHAs of `sha`, in order (`parents[0]` is the first parent). */
+  getCommitParents(params: GetCommitParentsParams): Promise<string[]>;
 }

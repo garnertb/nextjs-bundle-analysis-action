@@ -2,7 +2,7 @@ import type { BundleReport, RouteMeasurement } from '../collectors/types.js';
 import { COLLECTOR_VERSION, SCHEMA_VERSION } from '../collectors/types.js';
 import { evaluateThresholds } from '../thresholds/evaluate.js';
 import type { ThresholdConfig } from '../thresholds/types.js';
-import { compareBundleReports, toThresholdInput } from './compare.js';
+import { compareBundleReports, markBaselineStale, toThresholdInput } from './compare.js';
 import { buildActionUrl } from './action-url.js';
 import { renderReport, type ReportMeta } from './render.js';
 
@@ -65,6 +65,7 @@ const meta: ReportMeta = {
   slug: 'web',
   baseBranch: 'main',
   baseShortSha: 'a1b2c3d',
+  mergeBaseShortSha: undefined,
   compression: 'gzip',
   significantChangeBytes: 512,
   thresholds: config,
@@ -189,6 +190,37 @@ describe('renderReport', () => {
     );
   });
 
+  it('renders a stale-baseline note, keeping the comparable header and deltas', () => {
+    const routes = Array.from({ length: 42 }, (_, i) =>
+      route(`/route-${i}`, 'app', 14_145, 10_000),
+    );
+    const headReport = report({ total: 594_100, routers: { app: { shared: 88_600 } }, routes });
+    const baseReport = report({ total: 596_600, routers: { app: { shared: 88_600 } }, routes });
+
+    const comparison = markBaselineStale(compareBundleReports(headReport, baseReport));
+    const findings = evaluateThresholds(toThresholdInput(comparison), {});
+    const { markdown } = renderReport(comparison, findings, {
+      ...meta,
+      mergeBaseShortSha: 'e5f6g7h',
+      thresholds: {},
+      budgetsFilePath: undefined,
+    });
+
+    const [head] = splitBeforeAllRoutes(markdown);
+    expect(head).toBe(
+      [
+        '<!-- nextjs-bundle-analysis:web -->',
+        '### ⚠️ Bundle sizes · web',
+        '',
+        '**594.1 kB** total client JS (gzip) · **−2.5 kB (−0.4%)** vs `a1b2c3d` on `main`',
+        '42 routes · no route changed by ≥ 512 B · 0 warnings',
+        "⚠️ Baseline `a1b2c3d` isn't this PR's merge base `e5f6g7h`: no successful baseline run exists for `e5f6g7h`, so deltas may include changes already on `main`. A re-run helps only after a push run for `e5f6g7h` itself succeeds.",
+        '',
+        '',
+      ].join('\n'),
+    );
+  });
+
   it('reproduces plan.md example 3 (no baseline yet)', () => {
     const routes = Array.from({ length: 42 }, (_, i) =>
       route(`/route-${i}`, 'app', 14_145, 10_000),
@@ -287,6 +319,27 @@ describe('renderReport', () => {
 
     expect(markdown.startsWith('<!-- nextjs-bundle-analysis:web -->\n')).toBe(true);
     expect(markdown).toContain('/evil--\u200d!>');
+    expect(markdown.split('<!--')).toHaveLength(2);
+    expect(markdown.split('-->')).toHaveLength(2);
+    expect(markdown).not.toContain('--!>');
+  });
+
+  it('neutralizes hostile comment delimiters in the stale-baseline note', () => {
+    const routes = [route('/a', 'app', 200_000, 100_000)];
+    const headReport = report({ total: 200_000, routers: { app: { shared: 100_000 } }, routes });
+    const baseReport = report({ total: 190_000, routers: { app: { shared: 100_000 } }, routes });
+
+    const comparison = markBaselineStale(compareBundleReports(headReport, baseReport));
+    const { markdown } = renderReport(comparison, [], {
+      ...meta,
+      baseBranch: 'x--!>y<!--z',
+      baseShortSha: 'a--!>b',
+      mergeBaseShortSha: 'c--!>d',
+      thresholds: {},
+      budgetsFilePath: undefined,
+    });
+
+    expect(markdown.startsWith('<!-- nextjs-bundle-analysis:web -->\n')).toBe(true);
     expect(markdown.split('<!--')).toHaveLength(2);
     expect(markdown.split('-->')).toHaveLength(2);
     expect(markdown).not.toContain('--!>');

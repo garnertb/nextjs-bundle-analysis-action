@@ -1,7 +1,16 @@
 import type { BundleReport, RouterName } from '../collectors/types.js';
 import type { RouteThresholdInput, ThresholdEvaluationInput } from '../thresholds/types.js';
 
-export type BaselineStatus = 'found' | 'missing' | 'incompatible';
+export type BaselineStatus = 'found' | 'stale' | 'missing' | 'incompatible';
+
+/**
+ * `found` and `stale` both carry a real base report to diff against; only
+ * `stale` additionally means the base report isn't the PR's actual merge
+ * base. `missing`/`incompatible` have no usable base report at all.
+ */
+export function isComparableBaseline(status: BaselineStatus): boolean {
+  return status === 'found' || status === 'stale';
+}
 
 export interface IncompatibilityInfo {
   baseCompression: string;
@@ -167,6 +176,17 @@ export function toThresholdInput(comparison: Comparison): ThresholdEvaluationInp
     totalHead: comparison.totalAfter,
     totalBase: comparison.totalBefore,
     sharedHead,
-    baselineComparable: comparison.baselineStatus === 'found',
+    baselineComparable: isComparableBaseline(comparison.baselineStatus),
   };
+}
+
+/**
+ * Switches a `found` comparison to `stale`, flagging that the base report
+ * isn't this PR's actual merge base even though it's otherwise usable.
+ * Leaves `missing`/`incompatible` untouched: an incompatible fingerprint
+ * takes precedence, since there are no comparable deltas to flag as stale.
+ */
+export function markBaselineStale(comparison: Comparison): Comparison {
+  if (comparison.baselineStatus !== 'found') return comparison;
+  return { ...comparison, baselineStatus: 'stale' };
 }
