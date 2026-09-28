@@ -324,6 +324,29 @@ describe('renderReport', () => {
     expect(markdown).not.toContain('--!>');
   });
 
+  it.each(['/evil-->route', '/evil<!--route'])(
+    'neutralizes the marker spoof %s in every stale-baseline note field',
+    (spoof) => {
+      const routes = [route('/a', 'app', 200_000, 100_000)];
+      const headReport = report({ total: 200_000, routers: { app: { shared: 100_000 } }, routes });
+      const baseReport = report({ total: 190_000, routers: { app: { shared: 100_000 } }, routes });
+
+      const comparison = markBaselineStale(compareBundleReports(headReport, baseReport));
+      const { markdown } = renderReport(comparison, [], {
+        ...meta,
+        baseBranch: spoof,
+        baseShortSha: spoof,
+        baseCommitShortSha: spoof,
+        thresholds: {},
+        budgetsFilePath: undefined,
+      });
+
+      expect(markdown.startsWith('<!-- nextjs-bundle-analysis:web -->\n')).toBe(true);
+      expect(markdown.split('<!--')).toHaveLength(2);
+      expect(markdown.split('-->')).toHaveLength(2);
+    },
+  );
+
   it('neutralizes hostile comment delimiters in the stale-baseline note', () => {
     const routes = [route('/a', 'app', 200_000, 100_000)];
     const headReport = report({ total: 200_000, routers: { app: { shared: 100_000 } }, routes });
