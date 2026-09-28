@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/garnertb/nextjs-bundle-analysis-action/compare/nextjs-bundle-analysis-action-v1.0.0...nextjs-bundle-analysis-action-v1.1.0) (2026-09-28)
+
+
+### Features
+
+* prefer the PR's base commit for baseline lookup and report stale baselines ([#22](https://github.com/garnertb/nextjs-bundle-analysis-action/issues/22)) ([31ab77a](https://github.com/garnertb/nextjs-bundle-analysis-action/commit/31ab77aabb08e76b99958015ba89b3dacae6e66a))
+
 ## 1.0.0 (2026-09-25)
 
 
