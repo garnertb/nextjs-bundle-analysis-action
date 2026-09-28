@@ -71,7 +71,7 @@ function baseShaSegment(meta: ReportMeta): string | undefined {
 
 /**
  * Warns that the baseline, though comparable, isn't this PR's actual base
- * commit: no successful baseline run exists yet for that commit, so some of
+ * commit: no trusted run for that commit has a usable baseline artifact, so some of
  * the reported delta may really belong to `baseBranch`, not the PR.
  * `undefined` when there's no base commit SHA to name (shouldn't happen for
  * a `stale` comparison, but keeps this function total).
@@ -82,9 +82,9 @@ function staleBaselineNote(meta: ReportMeta): string | undefined {
   const baseCommit = codeSpan(baseCommitSha);
   const baseline = baseShaSegment(meta) ?? 'The baseline';
   return (
-    `⚠️ Baseline ${baseline} isn't this PR's base commit ${baseCommit}: no successful baseline run ` +
-    `exists for ${baseCommit}, so deltas may include changes already on ${codeSpan(meta.baseBranch)}. ` +
-    `A re-run helps only after a push run for ${baseCommit} itself succeeds.`
+    `⚠️ Baseline ${baseline} isn't this PR's base commit ${baseCommit}: no usable trusted baseline ` +
+    `artifact exists for ${baseCommit}, so deltas may include changes already on ${codeSpan(meta.baseBranch)}. ` +
+    `A re-run helps only after a push run for ${baseCommit} itself uploads one.`
   );
 }
 

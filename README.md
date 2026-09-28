@@ -34,13 +34,13 @@ absolute budgets (see [Sample report](#sample-report) below).
 
 On a `pull_request`, the action first looks for a baseline from the PR's
 actual base commit — the first parent of the merge commit `GITHUB_SHA` builds,
-resolved via the GitHub API. If no successful push run exists yet for that
-exact commit (e.g. it just merged, or that push run is still running), it
-falls back to the newest trusted push run on the base branch and reports
+resolved via the GitHub API. If no trusted push run for that exact commit
+has a usable baseline artifact (e.g. it just merged and its push run is still
+running, or the artifact expired), it falls back to the newest trusted push run on the base branch and reports
 `baseline-status: stale`: thresholds still apply, but the report notes that
 deltas may include changes already on the base branch. This can be permanent
 for a given base commit if that commit's push run was skipped, failed, or
-cancelled — updating or rebasing the PR resolves it.
+cancelled, or its artifact expired — updating or rebasing the PR resolves it.
 
 ## Usage
 

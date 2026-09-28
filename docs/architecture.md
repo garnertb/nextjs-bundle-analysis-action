@@ -79,13 +79,15 @@ is emitted since that value hasn't been verified against the merge ref's
 actual first parent. Only if neither source is usable does the lookup fall
 back to today's "newest trusted run" behavior with no preference at all.
 
-When the preferred commit has no trusted run yet, the search falls back to
-the newest trusted run on the base branch, and the resulting comparison is
+When no trusted run for the preferred commit has a usable baseline artifact
+(no successful push run yet, a run from another repository, or a missing or
+expired artifact), the search falls back to the newest trusted run on the
+base branch, and the resulting comparison is
 marked `baseline-status: stale` rather than `found`: every threshold still
 applies, but the report calls out that deltas may include changes already on
 the base branch. This can be permanent for a given base commit — if that
 commit's own push run was skipped (a `paths` filter, `[skip ci]`), failed, or
-was cancelled, and nobody re-runs it, later pushes to the base branch don't
+was cancelled, or its artifact expired, and nobody re-runs it, later pushes to the base branch don't
 help a PR merged onto that commit. Rebasing or otherwise updating the PR
 does, since it changes the base commit being resolved.
 

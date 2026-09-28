@@ -100157,7 +100157,7 @@ function staleBaselineNote(meta) {
   if (!baseCommitSha) return void 0;
   const baseCommit = codeSpan(baseCommitSha);
   const baseline = baseShaSegment(meta) ?? "The baseline";
-  return `\u26A0\uFE0F Baseline ${baseline} isn't this PR's base commit ${baseCommit}: no successful baseline run exists for ${baseCommit}, so deltas may include changes already on ${codeSpan(meta.baseBranch)}. A re-run helps only after a push run for ${baseCommit} itself succeeds.`;
+  return `\u26A0\uFE0F Baseline ${baseline} isn't this PR's base commit ${baseCommit}: no usable trusted baseline artifact exists for ${baseCommit}, so deltas may include changes already on ${codeSpan(meta.baseBranch)}. A re-run helps only after a push run for ${baseCommit} itself uploads one.`;
 }
 var FULL_SHA = /^[0-9a-f]{40}$/i;
 var SAFE_ACTION_URL = /^https:\/\/github\.com\/[^\s()<>]+$/;

@@ -214,7 +214,7 @@ describe('renderReport', () => {
         '',
         '**594.1 kB** total client JS (gzip) · **−2.5 kB (−0.4%)** vs `a1b2c3d` on `main`',
         '42 routes · no route changed by ≥ 512 B · 0 warnings',
-        "⚠️ Baseline `a1b2c3d` isn't this PR's base commit `e5f6g7h`: no successful baseline run exists for `e5f6g7h`, so deltas may include changes already on `main`. A re-run helps only after a push run for `e5f6g7h` itself succeeds.",
+        "⚠️ Baseline `a1b2c3d` isn't this PR's base commit `e5f6g7h`: no usable trusted baseline artifact exists for `e5f6g7h`, so deltas may include changes already on `main`. A re-run helps only after a push run for `e5f6g7h` itself uploads one.",
         '',
         '',
       ].join('\n'),
