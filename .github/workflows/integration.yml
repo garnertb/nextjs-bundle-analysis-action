@@ -211,6 +211,13 @@ jobs:
               fi
               echo "OK: baseline found and delta computed."
               ;;
+            stale)
+              if [[ -z "${{ steps.analyze.outputs.total-delta }}" ]]; then
+                echo "::error::baseline-status=stale but total-delta output is empty."
+                exit 1
+              fi
+              echo "::warning::baseline-status=stale (a race with a concurrent push to $BASE_REF is legitimate here; delta was still computed)."
+              ;;
             incompatible)
               if [[ "${{ env.fingerprint_changed }}" == "true" ]]; then
                 echo "::warning::baseline-status=incompatible (expected: this PR changes src/collectors/types.ts, the fingerprint schema/collector-version constants; deltas are skipped, absolute budgets still checked)."
