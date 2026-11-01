@@ -35,7 +35,15 @@ const combos = [
   { id: '16-turbopack', nextVersion: '16.3.5', bundler: 'turbopack', buildArgs: ['next', 'build'] },
 ];
 
-const apps = ['app-router', 'pages-router', 'mixed'];
+const apps = [
+  { name: 'app-router' },
+  { name: 'pages-router' },
+  { name: 'mixed' },
+  // Route-group and nested layouts, segment boundaries, `global-error` and
+  // parallel-route slots. Built only for the combos whose App Router routes
+  // come from `app-build-manifest.json`.
+  { name: 'nested-layouts', combos: ['15-webpack', '15-turbopack'] },
+];
 const installPackages = [
   'react@18.3.1',
   'react-dom@18.3.1',
@@ -678,16 +686,42 @@ function installAndBuild(combo, appName) {
   return analysis;
 }
 
+function parseOnlyCells(argv) {
+  const only = [];
+  for (let index = 0; index < argv.length; index += 1) {
+    if (argv[index] === '--only' && argv[index + 1]) {
+      only.push(argv[index + 1]);
+      index += 1;
+    } else {
+      throw new Error(
+        `Unknown argument: ${argv[index]}. Usage: build-fixtures.mjs [--only <combo>/<app>]...`,
+      );
+    }
+  }
+  return only;
+}
+
 function main() {
+  const cells = combos.flatMap((combo) =>
+    apps
+      .filter((app) => !app.combos || app.combos.includes(combo.id))
+      .map((app) => ({ id: `${combo.id}/${app.name}`, combo, appName: app.name })),
+  );
+  const only = parseOnlyCells(process.argv.slice(2));
+  const unknown = only.filter((id) => !cells.some((cell) => cell.id === id));
+  if (unknown.length > 0) {
+    throw new Error(
+      `Unknown --only cell(s): ${unknown.join(', ')}. Known: ${cells.map((cell) => cell.id).join(', ')}`,
+    );
+  }
+
   ensureDir(scratchRoot);
   ensureDir(fixturesNextDir);
 
   const summary = [];
-  for (const combo of combos) {
-    for (const appName of apps) {
-      const analysis = installAndBuild(combo, appName);
-      summary.push(analysis);
-    }
+  for (const { id, combo, appName } of cells) {
+    if (only.length > 0 && !only.includes(id)) continue;
+    summary.push(installAndBuild(combo, appName));
   }
 
   fs.writeFileSync(summaryPath, `${JSON.stringify(summary, null, 2)}\n`);

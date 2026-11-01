@@ -15,9 +15,12 @@ stale.
    pnpm run fixtures
    ```
 
-   This rebuilds every app for every combo into `.fixture-scratch/`
+   This rebuilds every combo/app cell (`nested-layouts` only exists for
+   the Next 15 combos) into `.fixture-scratch/`
    (gitignored) and overwrites the trimmed copies under
-   `fixtures/next/<combo>/<app>/`.
+   `fixtures/next/<combo>/<app>/`. To rebuild only some cells, pass
+   `--only <combo>/<app>` (repeatable), e.g.
+   `pnpm run fixtures --only 15-webpack/nested-layouts`.
 
 2. **Review the diff carefully.** `git diff --stat fixtures/next` first for
    an overview, then inspect the actual manifest/chunk diffs. Expected

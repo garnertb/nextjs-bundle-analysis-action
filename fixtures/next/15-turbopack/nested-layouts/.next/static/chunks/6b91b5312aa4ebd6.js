@@ -1,0 +1,1 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,47196,t=>{"use strict";t.s(["default",()=>r]);var e=t.i(18133);let o=Array.from({length:32},(t,e)=>"team-".concat(e));function r(){return(0,e.jsx)("aside",{children:o.join(", ")})}}]);
