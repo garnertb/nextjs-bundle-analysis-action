@@ -1,8 +1,12 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { collectBundleReport } from './index.js';
 import { collectPagesRoutes } from './pages.js';
 import { FileSizeCache } from './compression.js';
+import { walkFiles } from './manifest-io.js';
 import { UnsupportedAppRouterError } from './unsupported-error.js';
 import { EXPECTED_ROUTE_SIZES } from './__fixtures-expected.js';
+import type { RouteMeasurement } from './types.js';
 
 /**
  * Route Handlers (App Router `route.ts`) are excluded from collector output
@@ -68,4 +72,61 @@ describe('collectBundleReport against committed fixtures', () => {
       expect(formatLikeDoc(bytes), route).toBe(computedGzip);
     }
   });
+});
+
+/** The `<script src>` files a prerendered page loads, minus the `nomodule` polyfills. */
+function scriptsLoadedBy(htmlFile: string, polyfillFiles: ReadonlySet<string>): string[] {
+  const html = fs.readFileSync(htmlFile, 'utf8');
+  return Array.from(html.matchAll(/<script[^>]*\ssrc="\/_next\/([^"]+)"/g), (match) =>
+    decodeURIComponent(match[1]!),
+  ).filter((file) => !polyfillFiles.has(file));
+}
+
+/**
+ * The App Router routes that render at `url`: a parallel-route slot is a
+ * route of its own, so a URL with slots renders one route per slot.
+ */
+function routesRenderedAt(routes: RouteMeasurement[], url: string): RouteMeasurement[] {
+  const urlSegments = url.split('/').filter(Boolean);
+  return routes.filter((route) => {
+    const segments = route.route.split('/').filter((s) => s.length > 0 && !s.startsWith('@'));
+    return (
+      segments.length === urlSegments.length &&
+      segments.every((segment, i) => /^\[[^.\]]+\]$/.test(segment) || segment === urlSegments[i])
+    );
+  });
+}
+
+describe('App Router first-load files against prerendered HTML', () => {
+  for (const [combo, apps] of Object.entries(EXPECTED_ROUTE_SIZES)) {
+    for (const app of Object.keys(apps)) {
+      const comboKey = `${combo}/${app}`;
+      const nextDir = `fixtures/next/${comboKey}/.next`;
+      const appDir = path.join(nextDir, 'server', 'app');
+      const htmlFiles = walkFiles(appDir, (name) => name.endsWith('.html'));
+      if (UNSUPPORTED_COMBOS.has(comboKey) || htmlFiles.length === 0) continue;
+
+      it(`${comboKey}: every script a prerendered page loads is in its routes' files`, () => {
+        const report = collectBundleReport(nextDir, { compression: 'gzip' });
+        const appRoutes = report.routes.filter((route) => route.router === 'app');
+        const buildManifest = JSON.parse(
+          fs.readFileSync(path.join(nextDir, 'build-manifest.json'), 'utf8'),
+        ) as { polyfillFiles?: string[] };
+        const polyfillFiles = new Set(buildManifest.polyfillFiles ?? []);
+
+        for (const htmlFile of htmlFiles) {
+          const page = path
+            .relative(appDir, htmlFile)
+            .replace(/\.html$/, '')
+            .split(path.sep);
+          const url = page.join('/') === 'index' ? '/' : `/${page.join('/')}`;
+          const routes = routesRenderedAt(appRoutes, url);
+          expect(routes.length, `routes rendered at ${url}`).toBeGreaterThan(0);
+          const files = new Set(routes.flatMap((route) => route.files));
+          const missing = scriptsLoadedBy(htmlFile, polyfillFiles).filter((f) => !files.has(f));
+          expect(missing, `${comboKey} ${url}`).toEqual([]);
+        }
+      });
+    }
+  }
 });

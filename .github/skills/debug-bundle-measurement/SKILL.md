@@ -21,7 +21,10 @@ Use this when a route's reported `firstLoad`/`own`/`shared` size looks wrong.
    `next build` for that app; compare its printed per-route "First Load JS"
    against your computed number. A mismatch usually means either a manifest
    entry was mis-attributed to the wrong route, or a shared/root chunk
-   wasn't deduplicated correctly.
+   wasn't deduplicated correctly. One mismatch is expected: on Next 15
+   webpack, an App Router route also counts the layout and boundary
+   entries above its page, which `next build` leaves out (see
+   `docs/manifests.md`).
 
 3. **Find the offending manifest entry.** Look at the specific manifest file
    for that Next/bundler combo (see `docs/manifests.md` for which file and

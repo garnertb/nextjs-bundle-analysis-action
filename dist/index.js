@@ -99210,13 +99210,26 @@ function disambiguateAcrossRouters(pages, app) {
 }
 
 // src/collectors/app-manifest.ts
+var SEGMENT_ENTRY_NAMES = ["layout", "template", "error", "loading", "not-found"];
+var GLOBAL_ERROR_KEY = "/global-error";
+function enclosingEntryKeys(pageKey) {
+  const segments = pageKey.split("/").filter(Boolean).slice(0, -1);
+  const keys = [GLOBAL_ERROR_KEY];
+  for (let depth = 0; depth <= segments.length; depth += 1) {
+    const dir = segments.slice(0, depth).map((segment) => `/${segment}`).join("");
+    keys.push(...SEGMENT_ENTRY_NAMES.map((name) => `${dir}/${name}`));
+  }
+  return keys;
+}
 function collectAppManifestRoutes(nextDir) {
-  const manifest = readJsonManifest(nextDir, "app-build-manifest.json");
-  if (!manifest?.pages) return void 0;
-  const routes = buildRouteFileMap(Object.entries(manifest.pages), {
-    includePage: true,
-    includeRoute: false
-  });
+  const pages = readJsonManifest(nextDir, "app-build-manifest.json")?.pages;
+  if (!pages) return void 0;
+  const entryFiles = (key) => Object.hasOwn(pages, key) ? pages[key] ?? [] : [];
+  const entries = Object.entries(pages).map(([key, files]) => [
+    key,
+    key.endsWith("/page") ? [...enclosingEntryKeys(key).flatMap(entryFiles), ...files] : files
+  ]);
+  const routes = buildRouteFileMap(entries, { includePage: true, includeRoute: false });
   return routes.size === 0 ? void 0 : routes;
 }
 
@@ -99324,7 +99337,7 @@ function isSupportedNextVersion(version3) {
 }
 
 // src/collectors/types.ts
-var COLLECTOR_VERSION = "1";
+var COLLECTOR_VERSION = "2";
 var SCHEMA_VERSION = 1;
 
 // src/collectors/index.ts

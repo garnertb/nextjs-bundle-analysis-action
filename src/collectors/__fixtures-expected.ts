@@ -6,11 +6,11 @@ export const EXPECTED_ROUTE_SIZES: Record<
 > = {
   '15-webpack': {
     'app-router': [
-      ['/', '102.8 kB'],
-      ['/_not-found', '103.5 kB'],
-      ['/about', '104.3 kB'],
+      ['/', '103.5 kB'],
+      ['/_not-found', '104.2 kB'],
+      ['/about', '105.0 kB'],
       ['/api/hello', '102.7 kB'],
-      ['/blog/[slug]', '104.2 kB'],
+      ['/blog/[slug]', '104.8 kB'],
     ],
     'pages-router': [
       ['/', '82.4 kB'],
@@ -21,11 +21,20 @@ export const EXPECTED_ROUTE_SIZES: Record<
       ['/legacy', '82.9 kB'],
       ['/legacy/about', '84.8 kB'],
       ['/legacy/blog/[slug]', '84.4 kB'],
-      ['/', '102.7 kB'],
-      ['/_not-found', '103.5 kB'],
-      ['/about', '104.5 kB'],
+      ['/', '103.3 kB'],
+      ['/_not-found', '104.1 kB'],
+      ['/about', '105.1 kB'],
       ['/api/hello', '102.7 kB'],
-      ['/products/[slug]', '104.3 kB'],
+      ['/products/[slug]', '104.9 kB'],
+    ],
+    'nested-layouts': [
+      ['/', '103.7 kB'],
+      ['/_not-found', '103.6 kB'],
+      ['/about', '104.1 kB'],
+      ['/blog/[slug]', '105.3 kB'],
+      ['/dashboard', '104.1 kB'],
+      ['/dashboard/@analytics', '104.4 kB'],
+      ['/dashboard/@team', '104.1 kB'],
     ],
   },
   '15-turbopack': {
@@ -48,6 +57,15 @@ export const EXPECTED_ROUTE_SIZES: Record<
       ['/_not-found', '114.0 kB'],
       ['/about', '115.9 kB'],
       ['/products/[slug]', '115.7 kB'],
+    ],
+    'nested-layouts': [
+      ['/', '114.2 kB'],
+      ['/_not-found', '113.9 kB'],
+      ['/about', '114.4 kB'],
+      ['/blog/[slug]', '115.5 kB'],
+      ['/dashboard', '115.2 kB'],
+      ['/dashboard/@analytics', '115.2 kB'],
+      ['/dashboard/@team', '115.2 kB'],
     ],
   },
   '16-webpack': {

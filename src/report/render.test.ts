@@ -284,7 +284,7 @@ describe('renderReport', () => {
         '### ⚠️ Bundle sizes · web',
         '',
         '**594.1 kB** total client JS (gzip) · 42 routes · 1 warning',
-        'Baseline `a1b2c3d` was measured with brotli / collector v1 (now gzip / collector v1), so deltas are skipped this run. Absolute budgets were still checked.',
+        `Baseline \`a1b2c3d\` was measured with brotli / collector v${COLLECTOR_VERSION} (now gzip / collector v${COLLECTOR_VERSION}), so deltas are skipped this run. Absolute budgets were still checked.`,
         '',
         '#### Findings',
         '| | Route | Check | Value | Limit |',
@@ -409,7 +409,7 @@ describe('renderReport baseline SHA segment', () => {
   it('drops the SHA from the incompatible status line when it is undefined', () => {
     const { markdown } = renderReport(incompatible, [], { ...baseMeta, baseShortSha: undefined });
     expect(markdown).toContain(
-      '\nThe baseline was measured with brotli / collector v1 (now gzip / collector v1), so deltas are skipped this run.',
+      `\nThe baseline was measured with brotli / collector v${COLLECTOR_VERSION} (now gzip / collector v${COLLECTOR_VERSION}), so deltas are skipped this run.`,
     );
     expect(markdown).not.toContain('`  `');
   });

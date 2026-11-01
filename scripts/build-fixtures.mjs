@@ -225,6 +225,24 @@ function extractPagesRoutes(buildManifest) {
     .sort((left, right) => left.route.localeCompare(right.route));
 }
 
+// Mirrors src/collectors/app-manifest.ts: Next 15 webpack lists each
+// segment's layout and boundaries apart from the pages below them, and a
+// first visit loads them (and `app/global-error`) too.
+const segmentEntryNames = ['layout', 'template', 'error', 'loading', 'not-found'];
+
+function enclosingEntryKeys(pageKey) {
+  const segments = pageKey.split('/').filter(Boolean).slice(0, -1);
+  const keys = ['/global-error'];
+  for (let depth = 0; depth <= segments.length; depth += 1) {
+    const dir = segments
+      .slice(0, depth)
+      .map((segment) => `/${segment}`)
+      .join('');
+    keys.push(...segmentEntryNames.map((name) => `${dir}/${name}`));
+  }
+  return keys;
+}
+
 function extractAppRoutes(appBuildManifest) {
   const pages = appBuildManifest?.pages;
   if (!pages || typeof pages !== 'object') return [];
@@ -241,11 +259,16 @@ function extractAppRoutes(appBuildManifest) {
       );
     }
     seen.set(route, manifestKey);
+    const enclosingFiles = manifestKey.endsWith('/page')
+      ? enclosingEntryKeys(manifestKey).flatMap((key) =>
+          Array.isArray(pages[key]) ? pages[key] : [],
+        )
+      : [];
     routes.push({
       router: manifestKey.endsWith('/route') ? 'app-route-handler' : 'app',
       route,
       manifestKey,
-      files: unique(files),
+      files: unique([...enclosingFiles, ...files]),
       manifestPath: 'app-build-manifest.json.pages',
     });
   }

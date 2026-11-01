@@ -266,7 +266,14 @@ budgets file is a configuration error, not a silent no-op.
 ## The size model
 
 - **First load** is the compressed size of a route's unique required file
-  set (no double counting within a route).
+  set (no double counting within a route). For an App Router route, that
+  set includes the chunks of every layout above the page and of the
+  segment files rendered around it (`template`, `error`, `loading`,
+  `not-found`, and the root `global-error`), which a first visit loads
+  too. Next 15's webpack build lists those apart from the page, and its
+  own `next build` "First Load JS" leaves them out, so this number can
+  read higher than `next build`'s. A parallel-route slot's page is
+  reported as a route of its own, without its sibling slots.
 - **Shared**, per router, is: for the Pages Router,
   `pages['/_app']`'s files (plus the framework/main chunks bundled into
   it); for the App Router, the intersection of files across every route in
