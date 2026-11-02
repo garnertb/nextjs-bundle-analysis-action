@@ -273,7 +273,10 @@ budgets file is a configuration error, not a silent no-op.
   too. Next 15's webpack build lists those apart from the page, and its
   own `next build` "First Load JS" leaves them out, so this number can
   read higher than `next build`'s. A parallel-route slot's page is
-  reported as a route of its own, without its sibling slots.
+  reported as a route of its own, and the action doesn't add its sibling
+  slots' files. On Next 15 Turbopack, though, the build lists every
+  slot's chunks under each slot's page, so there a slot's first load
+  includes its siblings' code.
 - **Shared**, per router, is: for the Pages Router,
   `pages['/_app']`'s files (plus the framework/main chunks bundled into
   it); for the App Router, the intersection of files across every route in
