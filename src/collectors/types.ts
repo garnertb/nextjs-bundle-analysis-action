@@ -8,7 +8,7 @@ export type CompressionAlgorithm = 'gzip' | 'brotli' | 'none';
  * `schemaVersion` and `compression`, this lets a comparison detect an
  * incompatible baseline instead of silently diffing non-comparable numbers.
  */
-export const COLLECTOR_VERSION = '1';
+export const COLLECTOR_VERSION = '2';
 
 export const SCHEMA_VERSION = 1 as const;
 

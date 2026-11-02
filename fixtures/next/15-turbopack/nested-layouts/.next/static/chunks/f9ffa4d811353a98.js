@@ -1,0 +1,1 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,78928,t=>{"use strict";t.s(["default",()=>e]);var o=t.i(18133);let r=Array.from({length:32},(t,o)=>"dashboard-".concat(o));function e(){return(0,o.jsx)("main",{children:r.join(", ")})}}]);

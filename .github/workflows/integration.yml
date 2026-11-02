@@ -23,11 +23,13 @@ jobs:
         # One entry per combo/app cell, rather than a combo x app cross
         # product, since expectUnsupported varies per-app within 16-webpack
         # (only its App Router and mixed cells are documented as
-        # unsupported; its Pages Router cell is unaffected).
+        # unsupported; its Pages Router cell is unaffected), and
+        # nested-layouts is only built for the Next 15 combos.
         include:
           - { combo: 15-webpack, app: app-router, buildFlag: '', expectUnsupported: false }
           - { combo: 15-webpack, app: pages-router, buildFlag: '', expectUnsupported: false }
           - { combo: 15-webpack, app: mixed, buildFlag: '', expectUnsupported: false }
+          - { combo: 15-webpack, app: nested-layouts, buildFlag: '', expectUnsupported: false }
           - {
               combo: 15-turbopack,
               app: app-router,
@@ -41,6 +43,12 @@ jobs:
               expectUnsupported: false,
             }
           - { combo: 15-turbopack, app: mixed, buildFlag: '--turbopack', expectUnsupported: false }
+          - {
+              combo: 15-turbopack,
+              app: nested-layouts,
+              buildFlag: '--turbopack',
+              expectUnsupported: false,
+            }
           - { combo: 16-webpack, app: app-router, buildFlag: '--webpack', expectUnsupported: true }
           - {
               combo: 16-webpack,

@@ -11,6 +11,13 @@ applyTo: 'src/collectors/**'
 - Size accounting, defined in `src/collectors/index.ts`:
   - `firstLoad` = the route's own unique file set union'd with its router's
     `shared` set.
+  - On the `app-build-manifest.json` path (`app-manifest.ts`), an App
+    Router route's file set is its page entry plus the `/global-error`
+    entry and each enclosing segment's `layout`, `template`, `error`,
+    `loading` and `not-found` entries. Next 15 webpack lists those apart
+    from the page, and a first visit loads them. A parallel-route slot's
+    page stays a route of its own, and slots' `default` entries aren't
+    added.
   - Pages Router `shared` = the files referenced by `pages['/_app']` (plus
     whatever `_app` itself depends on), not an intersection across routes.
   - App Router `shared` = the intersection of files across every route in

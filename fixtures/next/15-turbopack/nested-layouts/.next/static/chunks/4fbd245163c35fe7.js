@@ -1,0 +1,1 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,23982,t=>{"use strict";t.s(["default",()=>n]);var e=t.i(18133);let r=Array.from({length:40},(t,e)=>"marketing-layout-".concat(e));function n(t){let{children:n}=t;return(0,e.jsxs)("section",{children:[(0,e.jsx)("header",{children:r.join(" ")}),n]})}}]);

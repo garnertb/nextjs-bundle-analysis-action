@@ -7,23 +7,25 @@ All installs/builds in this refresh ran inside the repo-relative, gitignored `.f
 - App Router manifest keys were normalized exactly like the existing reference implementation: strip the trailing `/page` or `/route`, drop route-group segments like `(marketing)`, and keep intercepting-route markers and parallel-route markers unchanged.
 - File sets were deduplicated before sizing (`Set` semantics).
 - Gzip sizes were computed from the actual emitted files under `.next/` with Node `zlib.gzipSync(..., { level: 9 })`, matching Next's own `First Load JS` compression level.
-- Verified against `.fixture-scratch/summary.json`: all 44 routes that still print a `First Load JS` value now land within Next's own CLI rounding windows (±500 B for whole-kB output, ±50 B for 1-decimal kB output, ±5 B for 2-decimal kB output). The remaining non-zero deltas below are fully explained by print-rounding, not by missing or extra files.
+- Verified against `.fixture-scratch/summary.json`: in the last full refresh, all 44 routes that still print a `First Load JS` value landed within Next's own CLI rounding windows (±500 B for whole-kB output, ±50 B for 1-decimal kB output, ±5 B for 2-decimal kB output) when each App Router route counted only its own page entry. Next 15 webpack App Router routes now also count the layouts and boundaries above them (see the Next 15 webpack bullet below), which `next build` leaves out, so those rows read above the printed value by exactly those chunks. Every other non-zero delta below is print-rounding, not missing or extra files.
 - Pages Router first-load JS is always `build-manifest.json.pages['/_app'] ∪ build-manifest.json.pages[route]`. `build-manifest.json.pages[route]` never includes the `/_app` files on its own, but `next build` always counts them.
+- Next 15 webpack App Router first-load JS is `app-build-manifest.json.pages[page]` ∪ the entries of `/global-error` and, for each segment from the root down to the page's own, its `layout`, `template`, `error`, `loading` and `not-found` (e.g. `/layout`, `/blog/layout`, `/blog/loading`), where the manifest has them. Webpack gives each of those files its own entry, and no page entry includes their chunks, but every prerendered page's `<script>` tags load them (see the 15-webpack `nested-layouts` section). `next build`'s own `First Load JS` counts the page entry alone, so it under-reports these routes. Next 15 Turbopack's `app-build-manifest.json` has page keys only, and each page entry already includes those chunks, so the same union adds nothing there. A parallel-route slot's page stays a route of its own, and the union adds neither its sibling slots' entries nor slots' `default` entries. On 15-webpack a slot's route therefore leaves out its siblings' code, but on 15-turbopack each slot's page entry already lists every slot's chunks, so there a slot's route includes its siblings' code (see the 15-turbopack `nested-layouts` section).
 - The committed fixtures are trimmed evidence copies. Where a JSON manifest exists, the committed JSON set is now just `build-manifest.json` and `app-build-manifest.json`; the rest of the retained evidence is referenced client JS chunks, `server/app/**/_client-reference-manifest.js`, and the kept `server/app/**/*.html` evidence files for the 16-webpack App Router case. The `<details>` file listings below still show the full pre-trim `.next` output recorded in `.fixture-scratch/summary.json`, not only the committed subset.
 - Relative to the previous committed fixture snapshot on this branch, the trim reduces `fixtures/next/` from 12.84 MiB / 949 files to 10.30 MiB / 434 files; JSON alone drops from 3.15 MiB / 660 files to 52.3 KiB / 91 files.
 - Next's webpack App Router manifests embed the absolute build directory as `*_client-reference-manifest.js` `clientModules` / `entryCSSFiles` keys; that's intrinsic to webpack's manifest shape, not this project's tooling. Only the `.chunks` array values are used for sizing, so the fixture script now rewrites that absolute prefix to a stable `/__fixture__` placeholder when copying these files into the committed fixture, and asserts (`assertNoLeakedAbsolutePaths`) that no copied file still contains the build machine's home directory. `build-manifest.json` / `app-build-manifest.json` never contained an absolute path to begin with; Turbopack's client-reference manifests use opaque module identifiers instead of filesystem paths.
 - All 15 combo/app builds exited 0 in this refresh, including `16-webpack`. The Next 16 webpack App Router **UNSUPPORTED** verdict below was re-verified on a clean successful build, not on a swallowed failure.
+- The `nested-layouts` app (route-group and nested layouts, a segment's `template`/`error`/`loading`/`not-found`, a root `not-found` and `global-error`, and parallel-route slots) is built only for the two Next 15 combos, whose App Router routes come from `app-build-manifest.json`. Its cells were added later with `pnpm run fixtures --only 15-webpack/nested-layouts --only 15-turbopack/nested-layouts`, and their pinned `package.json`/`pnpm-lock.yaml` reuse the `next@15.5.25` lockfile committed for `15-webpack/app-router`.
 
 ## Final support matrix
 
 The latest rebuild leaves the support verdicts unchanged, and this table still matches `.fixture-scratch/summary.json`'s `supported` field for all 15 combo/app entries.
 
-| Combo        | App Router                                                                                                                                                    | Pages Router                                                                        | Mixed app                                                                                              |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| 15-webpack   | SUPPORTED — `app-build-manifest.json.pages`                                                                                                                   | SUPPORTED — `build-manifest.json.pages['/_app'] ∪ build-manifest.json.pages[route]` | SUPPORTED — pages via `pages['/_app'] ∪ pages[route]`, app via `app-build-manifest.json.pages`         |
-| 15-turbopack | SUPPORTED — `app-build-manifest.json.pages`                                                                                                                   | SUPPORTED — `build-manifest.json.pages['/_app'] ∪ build-manifest.json.pages[route]` | SUPPORTED — pages via `pages['/_app'] ∪ pages[route]`, app via `app-build-manifest.json.pages`         |
-| 16-webpack   | UNSUPPORTED — `*_client-reference-manifest.js` lacks `entryJSFiles`, and the root `app/page` chunk leaks into other routes' `clientModules` / `entryCSSFiles` | SUPPORTED — `build-manifest.json.pages['/_app'] ∪ build-manifest.json.pages[route]` | SUPPORTED — Pages Router half via `pages['/_app'] ∪ pages[route]`; App Router half remains unsupported |
-| 16-turbopack | SUPPORTED — `build-manifest.json.rootMainFiles` + `server/app/**/_client-reference-manifest.js` `entryJSFiles`                                                | SUPPORTED — `build-manifest.json.pages['/_app'] ∪ build-manifest.json.pages[route]` | SUPPORTED — pages via `pages['/_app'] ∪ pages[route]`, app via `rootMainFiles ∪ entryJSFiles`          |
+| Combo        | App Router                                                                                                                                                                      | Pages Router                                                                        | Mixed app                                                                                                     |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| 15-webpack   | SUPPORTED — `app-build-manifest.json.pages[page]` ∪ the `/global-error` entry and the `layout`/`template`/`error`/`loading`/`not-found` entries of every segment above the page | SUPPORTED — `build-manifest.json.pages['/_app'] ∪ build-manifest.json.pages[route]` | SUPPORTED — pages via `pages['/_app'] ∪ pages[route]`, app via the same `app-build-manifest.json.pages` union |
+| 15-turbopack | SUPPORTED — `app-build-manifest.json.pages[page]`, which already includes its layouts and boundaries                                                                            | SUPPORTED — `build-manifest.json.pages['/_app'] ∪ build-manifest.json.pages[route]` | SUPPORTED — pages via `pages['/_app'] ∪ pages[route]`, app via `app-build-manifest.json.pages`                |
+| 16-webpack   | UNSUPPORTED — `*_client-reference-manifest.js` lacks `entryJSFiles`, and the root `app/page` chunk leaks into other routes' `clientModules` / `entryCSSFiles`                   | SUPPORTED — `build-manifest.json.pages['/_app'] ∪ build-manifest.json.pages[route]` | SUPPORTED — Pages Router half via `pages['/_app'] ∪ pages[route]`; App Router half remains unsupported        |
+| 16-turbopack | SUPPORTED — `build-manifest.json.rootMainFiles` + `server/app/**/_client-reference-manifest.js` `entryJSFiles`                                                                  | SUPPORTED — `build-manifest.json.pages['/_app'] ∪ build-manifest.json.pages[route]` | SUPPORTED — pages via `pages['/_app'] ∪ pages[route]`, app via `rootMainFiles ∪ entryJSFiles`                 |
 
 ## 15-webpack
 
@@ -31,8 +33,9 @@ The latest rebuild leaves the support verdicts unchanged, and this table still m
 
 - Version: `Next.js v15.5.25`
 - Build command: `pnpm exec next build`
-- Verdict: SUPPORTED — `app-build-manifest.json.pages` still carries exact App Router route-to-chunk arrays.
-- Shared/root representation: Shared/root chunks are repeated inside every route array in `app-build-manifest.json.pages`; compute shared JS as the set intersection across the page entries.
+- Verdict: SUPPORTED — `app-build-manifest.json.pages` still carries exact App Router route-to-chunk arrays, once each page's entry is joined with the layout entry above it (see the layout finding).
+- Shared/root representation: Shared/root chunks are repeated inside every route array in `app-build-manifest.json.pages`; compute shared JS as the set intersection across the routes' file sets.
+- Layout finding: The root layout has an entry of its own, `/layout`, and no page entry lists its chunk (`static/chunks/app/layout-551d73a218f5e1d1.js`, 634 B gzipped), yet `server/app/index.html`, `about.html` and `_not-found.html` all load it with a `<script>` tag. Each route's first load therefore adds the `/layout` entry. `next build`'s printed value leaves it out: counting it, `/about` and `/blog/[slug]` would print `105 kB`.
 - Route Handler finding: The Route Handler key is absent from `app-build-manifest.json.pages` in this build, so there is no client-JS entry to count.
 
 <details>
@@ -88,6 +91,13 @@ The latest rebuild leaves the support verdicts unchanged, and this table still m
       "static/chunks/main-app-d9a0b0370ce0b51a.js",
       "static/chunks/app/_not-found/page-e137af53785abd90.js"
     ],
+    "/layout": [
+      "static/chunks/webpack-078f6dfb37dff419.js",
+      "static/chunks/4188f269-260947d4cd40a441.js",
+      "static/chunks/535-aa5fcf2e65d5bead.js",
+      "static/chunks/main-app-d9a0b0370ce0b51a.js",
+      "static/chunks/app/layout-551d73a218f5e1d1.js"
+    ],
     "/blog/[slug]/page": [
       "static/chunks/webpack-078f6dfb37dff419.js",
       "static/chunks/4188f269-260947d4cd40a441.js",
@@ -115,13 +125,13 @@ The latest rebuild leaves the support verdicts unchanged, and this table still m
 
 **Per-route gzip totals vs `next build`**
 
-| Route          | Computed gzip bytes | `next build` printed value |  Delta | Explanation                                              |
-| -------------- | ------------------: | -------------------------: | -----: | -------------------------------------------------------- |
-| `/`            |            102.8 kB |                     103 kB | -170 B | Within Next's ±500 B print-rounding window for `103 kB`. |
-| `/_not-found`  |            103.5 kB |                     104 kB | -478 B | Within Next's ±500 B print-rounding window for `104 kB`. |
-| `/about`       |            104.3 kB |                     104 kB | +347 B | Within Next's ±500 B print-rounding window for `104 kB`. |
-| `/api/hello`   |            102.7 kB |                     103 kB | -349 B | Within Next's ±500 B print-rounding window for `103 kB`. |
-| `/blog/[slug]` |            104.2 kB |                     104 kB | +162 B | Within Next's ±500 B print-rounding window for `104 kB`. |
+| Route          | Computed gzip bytes | `next build` printed value |  Delta | Explanation                                                                                                                              |
+| -------------- | ------------------: | -------------------------: | -----: | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`            |            103.5 kB |                     103 kB | +464 B | Adds the 634 B `/layout` chunk, which `next build` leaves out; the page entry alone (102.8 kB) is within the ±500 B window for `103 kB`. |
+| `/_not-found`  |            104.2 kB |                     104 kB | +156 B | Adds the 634 B `/layout` chunk; the page entry alone (103.5 kB) is within the ±500 B window for `104 kB`.                                |
+| `/about`       |            105.0 kB |                     104 kB | +981 B | Adds the 634 B `/layout` chunk; the page entry alone (104.3 kB) is within the ±500 B window for `104 kB`.                                |
+| `/api/hello`   |            102.7 kB |                     103 kB | -349 B | Within Next's ±500 B print-rounding window for `103 kB`.                                                                                 |
+| `/blog/[slug]` |            104.8 kB |                     104 kB | +796 B | Adds the 634 B `/layout` chunk; the page entry alone (104.2 kB) is within the ±500 B window for `104 kB`.                                |
 
 ### pages-router
 
@@ -212,8 +222,9 @@ The latest rebuild leaves the support verdicts unchanged, and this table still m
 
 - Version: `Next.js v15.5.25`
 - Build command: `pnpm exec next build`
-- Verdict: SUPPORTED — Pages Router routes come from `build-manifest.json.pages`; App Router routes come from `app-build-manifest.json.pages`.
+- Verdict: SUPPORTED — Pages Router routes come from `build-manifest.json.pages`; App Router routes come from `app-build-manifest.json.pages`, each page's entry joined with the layout entry above it.
 - Shared/root representation: Pages Router first-load is `pages['/_app'] ∪ pages[route]`; App Router still repeats shared chunks inside each `app-build-manifest.json.pages` array. Keep the routers separate instead of merging their shared sets.
+- Layout finding: As in `app-router`, the root layout's chunk (`static/chunks/app/layout-ab226076b3d6438a.js`, 625 B gzipped) is only in the `/layout` entry, and `server/app/index.html`, `about.html` and `_not-found.html` all load it. Counting it, `/products/[slug]` would print `105 kB`.
 - Route Handler finding: The Route Handler key is absent from `app-build-manifest.json.pages` in this build.
 
 <details>
@@ -304,6 +315,13 @@ The latest rebuild leaves the support verdicts unchanged, and this table still m
       "static/chunks/main-app-6acb934425cee833.js",
       "static/chunks/app/_not-found/page-65dfda04f3977cdf.js"
     ],
+    "/layout": [
+      "static/chunks/webpack-078f6dfb37dff419.js",
+      "static/chunks/4188f269-260947d4cd40a441.js",
+      "static/chunks/535-aa5fcf2e65d5bead.js",
+      "static/chunks/main-app-6acb934425cee833.js",
+      "static/chunks/app/layout-ab226076b3d6438a.js"
+    ],
     "/(marketing)/about/page": [
       "static/chunks/webpack-078f6dfb37dff419.js",
       "static/chunks/4188f269-260947d4cd40a441.js",
@@ -331,16 +349,123 @@ The latest rebuild leaves the support verdicts unchanged, and this table still m
 
 **Per-route gzip totals vs `next build`**
 
-| Route                 | Computed gzip bytes | `next build` printed value |  Delta | Explanation                                              |
-| --------------------- | ------------------: | -------------------------: | -----: | -------------------------------------------------------- |
-| `/legacy`             |             82.9 kB |                    82.9 kB |  -20 B | Within Next's ±50 B print-rounding window for `82.9 kB`. |
-| `/legacy/about`       |             84.8 kB |                    84.8 kB |  +22 B | Within Next's ±50 B print-rounding window for `84.8 kB`. |
-| `/legacy/blog/[slug]` |             84.4 kB |                    84.4 kB |    0 B | Within Next's ±50 B print-rounding window for `84.4 kB`. |
-| `/`                   |            102.7 kB |                     103 kB | -345 B | Within Next's ±500 B print-rounding window for `103 kB`. |
-| `/_not-found`         |            103.5 kB |                     104 kB | -480 B | Within Next's ±500 B print-rounding window for `104 kB`. |
-| `/about`              |            104.5 kB |                     105 kB | -477 B | Within Next's ±500 B print-rounding window for `105 kB`. |
-| `/api/hello`          |            102.7 kB |                     103 kB | -345 B | Within Next's ±500 B print-rounding window for `103 kB`. |
-| `/products/[slug]`    |            104.3 kB |                     104 kB | +276 B | Within Next's ±500 B print-rounding window for `104 kB`. |
+| Route                 | Computed gzip bytes | `next build` printed value |  Delta | Explanation                                                                                                                              |
+| --------------------- | ------------------: | -------------------------: | -----: | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `/legacy`             |             82.9 kB |                    82.9 kB |  -20 B | Within Next's ±50 B print-rounding window for `82.9 kB`.                                                                                 |
+| `/legacy/about`       |             84.8 kB |                    84.8 kB |  +22 B | Within Next's ±50 B print-rounding window for `84.8 kB`.                                                                                 |
+| `/legacy/blog/[slug]` |             84.4 kB |                    84.4 kB |    0 B | Within Next's ±50 B print-rounding window for `84.4 kB`.                                                                                 |
+| `/`                   |            103.3 kB |                     103 kB | +280 B | Adds the 625 B `/layout` chunk, which `next build` leaves out; the page entry alone (102.7 kB) is within the ±500 B window for `103 kB`. |
+| `/_not-found`         |            104.1 kB |                     104 kB | +145 B | Adds the 625 B `/layout` chunk; the page entry alone (103.5 kB) is within the ±500 B window for `104 kB`.                                |
+| `/about`              |            105.1 kB |                     105 kB | +148 B | Adds the 625 B `/layout` chunk; the page entry alone (104.5 kB) is within the ±500 B window for `105 kB`.                                |
+| `/api/hello`          |            102.7 kB |                     103 kB | -345 B | Within Next's ±500 B print-rounding window for `103 kB`.                                                                                 |
+| `/products/[slug]`    |            104.9 kB |                     104 kB | +901 B | Adds the 625 B `/layout` chunk; the page entry alone (104.3 kB) is within the ±500 B window for `104 kB`.                                |
+
+### nested-layouts
+
+- Version: `Next.js v15.5.25`
+- Build command: `pnpm exec next build`
+- Verdict: SUPPORTED — the same `app-build-manifest.json.pages` union as `app-router`. This app has every kind of entry the union adds.
+- Manifest finding: Besides the page keys, the manifest has one key per layout and boundary file: `/global-error`, `/layout`, `/not-found`, `/(marketing)/layout`, `/blog/layout`, `/blog/template`, `/blog/error`, `/blog/loading`, `/blog/not-found`, `/dashboard/layout` and `/dashboard/@analytics/layout`. Each lists the shared runtime chunks plus that file's own chunk, and no other entry lists that chunk.
+- First-load finding: Every prerendered page loads, with `<script>` tags, the chunks of the entries above it (table below): the root `global-error`, `layout` and `not-found` on every page, the route group's layout on `/about`, and the blog segment's `layout`, `template`, `error`, `loading` and `not-found` on `/blog/hello`. `next build` prints the page entry alone, so its value is low by those chunks.
+- Parallel-route finding: `next build` prints one `/dashboard` row for the URL, which renders `/dashboard/page`, `/dashboard/@team/page` and `/dashboard/@analytics/page`, and `dashboard.html` loads all three plus `/dashboard/@analytics/layout`. The normalization rules keep each slot's page as a route of its own, so `/dashboard` counts neither sibling slot; a first visit to the URL downloads the union of the three rows.
+- Route Handler finding: N/A — this fixture has no App Router Route Handler.
+- `find .next -maxdepth 2 -type f`: same listing as `app-router`.
+
+**Chunks each prerendered page loads**, beyond the four shared runtime chunks every entry lists and the `nomodule` polyfills (content hashes omitted):
+
+| Page              | Chunks                                                                                                                                                                                          |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `index.html`      | `app/global-error`, `app/layout`, `app/not-found`, `app/page`                                                                                                                                   |
+| `about.html`      | `app/global-error`, `app/layout`, `app/not-found`, `app/(marketing)/layout`, `app/(marketing)/about/page`                                                                                       |
+| `blog/hello.html` | `app/global-error`, `app/layout`, `app/not-found`, `app/blog/layout`, `app/blog/template`, `app/blog/error`, `app/blog/loading`, `app/blog/not-found`, `app/blog/[slug]/page`                   |
+| `dashboard.html`  | `app/global-error`, `app/layout`, `app/not-found`, `app/dashboard/layout`, `app/dashboard/page`, `app/dashboard/@team/page`, `app/dashboard/@analytics/layout`, `app/dashboard/@analytics/page` |
+| `_not-found.html` | `app/global-error`, `app/layout`, `app/not-found`                                                                                                                                               |
+
+**`app-build-manifest.json` excerpt** (the entries `/blog/[slug]` counts)
+
+```json
+{
+  "pages": {
+    "/global-error": [
+      "static/chunks/webpack-078f6dfb37dff419.js",
+      "static/chunks/4188f269-260947d4cd40a441.js",
+      "static/chunks/535-aa5fcf2e65d5bead.js",
+      "static/chunks/main-app-a6604c0721203d14.js",
+      "static/chunks/app/global-error-a67b4f57d850a896.js"
+    ],
+    "/layout": [
+      "static/chunks/webpack-078f6dfb37dff419.js",
+      "static/chunks/4188f269-260947d4cd40a441.js",
+      "static/chunks/535-aa5fcf2e65d5bead.js",
+      "static/chunks/main-app-a6604c0721203d14.js",
+      "static/chunks/app/layout-9ed4f4f09c011803.js"
+    ],
+    "/not-found": [
+      "static/chunks/webpack-078f6dfb37dff419.js",
+      "static/chunks/4188f269-260947d4cd40a441.js",
+      "static/chunks/535-aa5fcf2e65d5bead.js",
+      "static/chunks/main-app-a6604c0721203d14.js",
+      "static/chunks/app/not-found-65fc21af31c6f11e.js"
+    ],
+    "/blog/layout": [
+      "static/chunks/webpack-078f6dfb37dff419.js",
+      "static/chunks/4188f269-260947d4cd40a441.js",
+      "static/chunks/535-aa5fcf2e65d5bead.js",
+      "static/chunks/main-app-a6604c0721203d14.js",
+      "static/chunks/app/blog/layout-1c2913aeec5ca387.js"
+    ],
+    "/blog/template": [
+      "static/chunks/webpack-078f6dfb37dff419.js",
+      "static/chunks/4188f269-260947d4cd40a441.js",
+      "static/chunks/535-aa5fcf2e65d5bead.js",
+      "static/chunks/main-app-a6604c0721203d14.js",
+      "static/chunks/app/blog/template-2418ff659c8494f5.js"
+    ],
+    "/blog/error": [
+      "static/chunks/webpack-078f6dfb37dff419.js",
+      "static/chunks/4188f269-260947d4cd40a441.js",
+      "static/chunks/535-aa5fcf2e65d5bead.js",
+      "static/chunks/main-app-a6604c0721203d14.js",
+      "static/chunks/app/blog/error-f408c4c56a8a6d9f.js"
+    ],
+    "/blog/loading": [
+      "static/chunks/webpack-078f6dfb37dff419.js",
+      "static/chunks/4188f269-260947d4cd40a441.js",
+      "static/chunks/535-aa5fcf2e65d5bead.js",
+      "static/chunks/main-app-a6604c0721203d14.js",
+      "static/chunks/app/blog/loading-1a1cc5c817c363e2.js"
+    ],
+    "/blog/not-found": [
+      "static/chunks/webpack-078f6dfb37dff419.js",
+      "static/chunks/4188f269-260947d4cd40a441.js",
+      "static/chunks/535-aa5fcf2e65d5bead.js",
+      "static/chunks/main-app-a6604c0721203d14.js",
+      "static/chunks/app/blog/not-found-a949009c7adc354a.js"
+    ],
+    "/blog/[slug]/page": [
+      "static/chunks/webpack-078f6dfb37dff419.js",
+      "static/chunks/4188f269-260947d4cd40a441.js",
+      "static/chunks/535-aa5fcf2e65d5bead.js",
+      "static/chunks/main-app-a6604c0721203d14.js",
+      "static/chunks/app/blog/[slug]/page-19c06cff2a1fac0b.js"
+    ]
+  }
+}
+```
+
+**Per-route gzip totals vs `next build`**
+
+The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzipped) add 933 B to every route.
+
+| Route                   | Computed gzip bytes | `next build` printed value |    Delta | Explanation                                                                                                                                                    |
+| ----------------------- | ------------------: | -------------------------: | -------: | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`                     |            103.7 kB |                     103 kB |   +744 B | Adds the root entries, which `next build` leaves out; the page entry alone (102.8 kB) is within the ±500 B window for `103 kB`.                                |
+| `/_not-found`           |            103.6 kB |                     103 kB |   +581 B | Adds the root entries; the page entry alone (102.6 kB) is within the ±500 B window for `103 kB`.                                                               |
+| `/about`                |            104.1 kB |                     103 kB | +1,064 B | Adds the root entries and `/(marketing)/layout` (318 B); the page entry alone (102.8 kB) is within the ±500 B window for `103 kB`.                             |
+| `/blog/[slug]`          |            105.3 kB |                     103 kB | +2,272 B | Adds the root entries and the blog segment's five (1,510 B); the page entry alone (102.8 kB) is within the ±500 B window for `103 kB`.                         |
+| `/dashboard`            |            104.1 kB |                     103 kB | +1,076 B | Adds the root entries and `/dashboard/layout` (329 B); the page entry alone (102.8 kB) is within the ±500 B window for `103 kB`.                               |
+| `/dashboard/@analytics` |            104.4 kB |                        N/A |      N/A | `next build` prints no row for a slot (see the parallel-route finding). Adds the root entries, `/dashboard/layout` and `/dashboard/@analytics/layout` (319 B). |
+| `/dashboard/@team`      |            104.1 kB |                        N/A |      N/A | `next build` prints no row for a slot. Adds the root entries and `/dashboard/layout`.                                                                          |
 
 ## 15-turbopack
 
@@ -350,6 +475,7 @@ The latest rebuild leaves the support verdicts unchanged, and this table still m
 - Build command: `pnpm exec next build --turbopack`
 - Verdict: SUPPORTED — `app-build-manifest.json.pages` still carries exact App Router route-to-chunk arrays.
 - Shared/root representation: Shared/root chunks are repeated inside every route array in `app-build-manifest.json.pages`; compute shared JS as the set intersection across the page entries.
+- Layout finding: Unlike 15-webpack, the manifest has page keys only, with no `/layout`. Every page entry already lists the chunk with the root layout's client code (`static/chunks/51a33b9b01f841e6.js` holds `SharedShell`), and each prerendered page loads exactly its page entry's chunks plus the `nomodule` polyfills. The layout and boundary union finds no entries to add, so these numbers are the page entries'.
 - Route Handler finding: The Route Handler key is absent from `app-build-manifest.json.pages` in this build, so there is no client-JS entry to count.
 
 <details>
@@ -531,6 +657,7 @@ The latest rebuild leaves the support verdicts unchanged, and this table still m
 - Build command: `pnpm exec next build --turbopack`
 - Verdict: SUPPORTED — Pages Router routes come from `build-manifest.json.pages`; App Router routes come from `app-build-manifest.json.pages`.
 - Shared/root representation: Pages Router first-load is `pages['/_app'] ∪ pages[route]`; App Router still repeats shared chunks inside each `app-build-manifest.json.pages` array. Keep the routers separate instead of merging their shared sets.
+- Layout finding: As in `app-router`, there's no `/layout` key, every page entry lists the chunk with the root layout's code (`static/chunks/48655ed6c9c9fe09.js`), and each prerendered page loads exactly its page entry's chunks plus the polyfills.
 - Route Handler finding: The Route Handler key is absent from `app-build-manifest.json.pages` in this build.
 
 <details>
@@ -654,6 +781,64 @@ The latest rebuild leaves the support verdicts unchanged, and this table still m
 | `/_not-found`         |            114.0 kB |                     114 kB |  -25 B | Within Next's ±500 B print-rounding window for `114 kB`. |
 | `/about`              |            115.9 kB |                     116 kB |  -67 B | Within Next's ±500 B print-rounding window for `116 kB`. |
 | `/products/[slug]`    |            115.7 kB |                     116 kB | -318 B | Within Next's ±500 B print-rounding window for `116 kB`. |
+
+### nested-layouts
+
+- Version: `Next.js v15.5.25`
+- Build command: `pnpm exec next build --turbopack`
+- Verdict: SUPPORTED — `app-build-manifest.json.pages` carries exact App Router route-to-chunk arrays, layouts and boundaries included.
+- Manifest finding: The manifest has the seven page keys and nothing else: no `/layout`, `/not-found`, `/global-error`, or any of the blog segment's or the slots' entries that 15-webpack lists. Every page entry already lists the chunks with that code: the root layout's, root `not-found`'s and `global-error`'s code sits in chunks every entry lists, and `/blog/[slug]/page` adds six chunks holding the blog segment's `layout`, `template`, `error`, `loading` and `not-found` and the page itself. Each prerendered page loads exactly its page entry's chunks plus the `nomodule` polyfills, so the 15-webpack union adds nothing here.
+- Parallel-route finding: `/dashboard/page`, `/dashboard/@team/page` and `/dashboard/@analytics/page` list the same chunks, which hold every slot's page and `@analytics`' layout, so each slot's row includes its siblings' code and the three rows are equal.
+- Route Handler finding: N/A — this fixture has no App Router Route Handler.
+- `find .next -maxdepth 2 -type f`: same listing as `app-router`.
+
+**`app-build-manifest.json` excerpt**
+
+```json
+{
+  "pages": {
+    "/page": [
+      "static/chunks/55257888a553031c.js",
+      "static/chunks/0e0c64984e756cdd.js",
+      "static/chunks/03487153f22fe8e1.js",
+      "static/chunks/2bcba88be9affc5a.js",
+      "static/chunks/1f2fffe0394d7e7e.js",
+      "static/chunks/fadb1a73c271ce26.js",
+      "static/chunks/eb961526d82e200c.js",
+      "static/chunks/344792388b4cc5c0.js",
+      "static/chunks/turbopack-477fa504844b8533.js"
+    ],
+    "/blog/[slug]/page": [
+      "static/chunks/55257888a553031c.js",
+      "static/chunks/0e0c64984e756cdd.js",
+      "static/chunks/03487153f22fe8e1.js",
+      "static/chunks/2bcba88be9affc5a.js",
+      "static/chunks/00561c2af9eff98e.js",
+      "static/chunks/f412b893327a8755.js",
+      "static/chunks/4d6140da02f4502e.js",
+      "static/chunks/620b535e7ec8945b.js",
+      "static/chunks/b63d4efa6f3070a8.js",
+      "static/chunks/ce09ddb7415f0f10.js",
+      "static/chunks/fadb1a73c271ce26.js",
+      "static/chunks/eb961526d82e200c.js",
+      "static/chunks/344792388b4cc5c0.js",
+      "static/chunks/turbopack-477fa504844b8533.js"
+    ]
+  }
+}
+```
+
+**Per-route gzip totals vs `next build`**
+
+| Route                   | Computed gzip bytes | `next build` printed value |  Delta | Explanation                                                         |
+| ----------------------- | ------------------: | -------------------------: | -----: | ------------------------------------------------------------------- |
+| `/`                     |            114.2 kB |                     114 kB | +162 B | Within Next's ±500 B print-rounding window for `114 kB`.            |
+| `/_not-found`           |            113.9 kB |                     114 kB |  -84 B | Within Next's ±500 B print-rounding window for `114 kB`.            |
+| `/about`                |            114.4 kB |                     114 kB | +444 B | Within Next's ±500 B print-rounding window for `114 kB`.            |
+| `/blog/[slug]`          |            115.5 kB |                     116 kB | -497 B | Within Next's ±500 B print-rounding window for `116 kB`.            |
+| `/dashboard`            |            115.2 kB |                     115 kB | +236 B | Within Next's ±500 B print-rounding window for `115 kB`.            |
+| `/dashboard/@analytics` |            115.2 kB |                        N/A |    N/A | `next build` prints no row for a slot; same chunks as `/dashboard`. |
+| `/dashboard/@team`      |            115.2 kB |                        N/A |    N/A | `next build` prints no row for a slot; same chunks as `/dashboard`. |
 
 ## 16-webpack
 

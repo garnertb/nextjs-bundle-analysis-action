@@ -1,0 +1,1 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,21269,t=>{"use strict";t.s(["RootShell",()=>l]);var o=t.i(18133);let e=Array.from({length:48},(t,o)=>"root-shell-".concat(o));function l(t){let{children:l}=t;return(0,o.jsxs)("div",{children:[(0,o.jsx)("nav",{children:e.join(" ")}),l]})}}]);

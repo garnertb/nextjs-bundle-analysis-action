@@ -1,0 +1,1 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,44411,t=>{"use strict";t.s(["PostBody",()=>n]);var o=t.i(18133);let e=Array.from({length:32},(t,o)=>"post-".concat(o));function n(t){let{slug:n}=t;return(0,o.jsxs)("main",{children:[(0,o.jsx)("h1",{children:n}),e.join(", ")]})}}]);
