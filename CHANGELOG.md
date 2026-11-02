@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/garnertb/nextjs-bundle-analysis-action/compare/nextjs-bundle-analysis-action-v1.1.0...nextjs-bundle-analysis-action-v1.1.1) (2026-11-02)
+
+
+### Bug Fixes
+
+* count layouts and segment boundaries in Next 15 webpack App Router sizes ([#38](https://github.com/garnertb/nextjs-bundle-analysis-action/issues/38)) ([0a25058](https://github.com/garnertb/nextjs-bundle-analysis-action/commit/0a250586ecee3eea12a79fb15e757b6c8aa1f2f6))
+
 ## [1.1.0](https://github.com/garnertb/nextjs-bundle-analysis-action/compare/nextjs-bundle-analysis-action-v1.0.0...nextjs-bundle-analysis-action-v1.1.0) (2026-09-28)
 
 
