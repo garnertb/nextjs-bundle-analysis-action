@@ -31,6 +31,23 @@ updates:
         applies-to: security-updates
         patterns: ['*']
 
+  # Each fixture app under fixtures/next/<combo>/<app> pins its own
+  # pnpm-lock.yaml. Security updates only, grouped into one PR; the `ci`
+  # prefix keeps release-please from cutting a release for them.
+  # fixtures/apps/* (the shared sources) is intentionally not covered.
+  - package-ecosystem: npm
+    directories:
+      - /fixtures/next/*/*
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 0
+    commit-message:
+      prefix: ci
+    groups:
+      fixtures-security:
+        applies-to: security-updates
+        patterns: ['*']
+
   - package-ecosystem: github-actions
     directory: /
     schedule:

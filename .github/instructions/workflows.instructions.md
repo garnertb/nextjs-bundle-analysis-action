@@ -22,6 +22,11 @@ applyTo: '.github/workflows/**,action.yml'
   embed installation-path-dependent strings (see the assertion in
   `esbuild.config.mjs`) or the action version (read from
   `GITHUB_ACTION_REF` at runtime instead).
+- `dependabot-dist.yml` rebuilds and pushes `dist/` on Dependabot PRs that
+  change the root `package.json`/`pnpm-lock.yaml`, using a GitHub App token
+  from the `DIST_BOT_CLIENT_ID`/`DIST_BOT_PRIVATE_KEY` Dependabot secrets.
+  Keep its `build` job free of secrets and its `push` job free of PR code
+  execution.
 - New workflows that build fixture apps (like `integration.yml`) should
   reuse the pinned per-combo `pnpm-lock.yaml` under
   `fixtures/next/<combo>/<app>/` rather than letting pnpm re-resolve
