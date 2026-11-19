@@ -1,0 +1,142 @@
+name: Dependabot dist
+
+# Dependabot updates package.json/pnpm-lock.yaml but can't rebuild dist/, so
+# check-dist fails on its dependency PRs. This rebuilds dist/ from the PR head
+# and pushes it back to the Dependabot branch.
+#
+# Runs on pull_request, not pull_request_target. On Dependabot-triggered runs
+# GITHUB_TOKEN is read-only and only Dependabot secrets are readable, so the
+# push uses a GitHub App installation token (which, unlike GITHUB_TOKEN, also
+# triggers CI on the pushed commit). The `build` job runs the PR's
+# dependencies with no secrets and a read-only token; only the `push` job
+# sees the App key, and it never executes PR code.
+#
+# Setup: create a GitHub App with Contents read/write on this repository,
+# install it here, and add Dependabot secrets DIST_BOT_CLIENT_ID (the App's
+# client ID) and DIST_BOT_PRIVATE_KEY (a PEM private key). Without them the
+# workflow skips with a notice.
+
+on:
+  pull_request:
+    paths:
+      - package.json
+      - pnpm-lock.yaml
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  preflight:
+    if: >-
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    steps:
+      - id: check
+        env:
+          ACTOR: ${{ github.actor }}
+          HAS_CLIENT_ID: ${{ secrets.DIST_BOT_CLIENT_ID != '' }}
+          HAS_PRIVATE_KEY: ${{ secrets.DIST_BOT_PRIVATE_KEY != '' }}
+        # The actor check only avoids rebuilding after this workflow's own
+        # push. It isn't the trust boundary: the App key is a Dependabot
+        # secret, readable only by Dependabot-triggered runs.
+        run: |
+          if [ "$ACTOR" != 'dependabot[bot]' ]; then
+            echo "Not triggered by Dependabot (actor: $ACTOR); nothing to do."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          elif [ "$HAS_CLIENT_ID" = true ] && [ "$HAS_PRIVATE_KEY" = true ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice title=dist/ not rebuilt::Dependabot secrets DIST_BOT_CLIENT_ID and DIST_BOT_PRIVATE_KEY are not set, so dist/ was not rebuilt. Run 'pnpm run build' and push dist/ to this branch, or see .github/workflows/dependabot-dist.yml for setup."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: preflight
+    if: needs.preflight.outputs.configured == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: package.json
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - id: diff
+        run: |
+          if [ -z "$(git status --porcelain -- dist)" ]; then
+            echo "::notice::dist/ is already up to date."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.diff.outputs.changed == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 1
+
+  push:
+    needs: build
+    if: needs.build.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - id: app-token
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+        with:
+          client-id: ${{ secrets.DIST_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.DIST_BOT_PRIVATE_KEY }}
+          permission-contents: write
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist
+          path: ${{ runner.temp }}/dist
+      - name: Commit and push dist/
+        env:
+          BUILT_DIST: ${{ runner.temp }}/dist
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          case "$HEAD_REF" in
+            dependabot/*) ;;
+            *) echo "::error::Refusing to push to non-Dependabot branch '$HEAD_REF'."; exit 1 ;;
+          esac
+          rsync -r --delete --no-links "$BUILT_DIST/" dist/
+          git add --all -- dist
+          if git diff --cached --quiet; then
+            echo "::notice::dist/ is already up to date."
+            exit 0
+          fi
+          bot="${APP_SLUG}[bot]"
+          bot_id="$(gh api "users/${bot}" --jq .id)"
+          git -c user.name="$bot" -c user.email="${bot_id}+${bot}@users.noreply.github.com" \
+            commit -m "chore: rebuild dist/"
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          echo "::add-mask::${auth}"
+          # Pushes onto the exact SHA that was built; fails if the branch moved.
+          git -c "http.${GITHUB_SERVER_URL}/.extraheader=AUTHORIZATION: basic ${auth}" \
+            push origin "HEAD:refs/heads/${HEAD_REF}"
