@@ -5,8 +5,8 @@
   "devFiles": [],
   "ampDevFiles": [],
   "lowPriorityFiles": [
-    "static/VRQIgfVjYyanE08ml4rLa/_buildManifest.js",
-    "static/VRQIgfVjYyanE08ml4rLa/_ssgManifest.js"
+    "static/EUVcq3-jvBUjrLV08EwM9/_buildManifest.js",
+    "static/EUVcq3-jvBUjrLV08EwM9/_ssgManifest.js"
   ],
   "rootMainFiles": [],
   "rootMainFilesTree": {},
@@ -14,32 +14,32 @@
     "/": [
       "static/chunks/webpack-1d629d4957d3a1db.js",
       "static/chunks/framework-82fce76e1725f96c.js",
-      "static/chunks/main-a839d92ffbf5ce0c.js",
-      "static/chunks/pages/index-3e6a1ddf4d3a27b1.js"
+      "static/chunks/main-f63ed7ab965a40fc.js",
+      "static/chunks/pages/index-39762e5175e686a4.js"
     ],
     "/_app": [
       "static/chunks/webpack-1d629d4957d3a1db.js",
       "static/chunks/framework-82fce76e1725f96c.js",
-      "static/chunks/main-a839d92ffbf5ce0c.js",
-      "static/chunks/pages/_app-751e98cbae0b42ed.js"
+      "static/chunks/main-f63ed7ab965a40fc.js",
+      "static/chunks/pages/_app-7d1ac6deae64c4e2.js"
     ],
     "/_error": [
       "static/chunks/webpack-1d629d4957d3a1db.js",
       "static/chunks/framework-82fce76e1725f96c.js",
-      "static/chunks/main-a839d92ffbf5ce0c.js",
-      "static/chunks/pages/_error-6054c7783a0999cf.js"
+      "static/chunks/main-f63ed7ab965a40fc.js",
+      "static/chunks/pages/_error-87d81d939d16fb4c.js"
     ],
     "/about": [
       "static/chunks/webpack-1d629d4957d3a1db.js",
       "static/chunks/framework-82fce76e1725f96c.js",
-      "static/chunks/main-a839d92ffbf5ce0c.js",
-      "static/chunks/pages/about-f2cc1edff468bd89.js"
+      "static/chunks/main-f63ed7ab965a40fc.js",
+      "static/chunks/pages/about-237a4c8176c18a50.js"
     ],
     "/blog/[slug]": [
       "static/chunks/webpack-1d629d4957d3a1db.js",
       "static/chunks/framework-82fce76e1725f96c.js",
-      "static/chunks/main-a839d92ffbf5ce0c.js",
-      "static/chunks/pages/blog/[slug]-0a06956d6c8bfab5.js"
+      "static/chunks/main-f63ed7ab965a40fc.js",
+      "static/chunks/pages/blog/[slug]-ed2b14790dfa2c1a.js"
     ]
   },
   "ampFirstPages": []

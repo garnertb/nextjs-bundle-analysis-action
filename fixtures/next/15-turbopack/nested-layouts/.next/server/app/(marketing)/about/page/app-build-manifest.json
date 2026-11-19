@@ -1,16 +1,16 @@
 {
   "pages": {
     "/(marketing)/about/page": [
-      "static/chunks/55257888a553031c.js",
-      "static/chunks/0e0c64984e756cdd.js",
-      "static/chunks/03487153f22fe8e1.js",
-      "static/chunks/2bcba88be9affc5a.js",
-      "static/chunks/4fbd245163c35fe7.js",
-      "static/chunks/f484912674c43161.js",
-      "static/chunks/fadb1a73c271ce26.js",
-      "static/chunks/eb961526d82e200c.js",
-      "static/chunks/344792388b4cc5c0.js",
-      "static/chunks/turbopack-477fa504844b8533.js"
+      "static/chunks/44c37dcf1450b1e6.js",
+      "static/chunks/93ed5feff6205c84.js",
+      "static/chunks/e02658ae4ff31906.js",
+      "static/chunks/bb9e3712548f83c8.js",
+      "static/chunks/e3742e9cb7839e0b.js",
+      "static/chunks/a67f44c57692223a.js",
+      "static/chunks/fe6e165de9e05016.js",
+      "static/chunks/5d4e467e6c07f371.js",
+      "static/chunks/937020354acae76a.js",
+      "static/chunks/turbopack-7ddd694f060c8f88.js"
     ]
   }
 }

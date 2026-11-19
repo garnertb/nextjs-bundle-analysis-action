@@ -6,13 +6,14 @@
   "rootMainFiles": [],
   "pages": {
     "/legacy/about": [
-      "static/chunks/3g2uu3obvkrxr.js",
-      "static/chunks/2swr6i7d99d2a.js",
-      "static/chunks/turbopack-1urz3umtsnv4k.js"
+      "static/chunks/0gj--nxmdk9mb.js",
+      "static/chunks/turbopack-2u1d16houkiyo.js"
     ]
   },
   "ampFirstPages": [],
   "rootMainFilesTree": {},
-  "pagesChunkGroupBootstrapParams": {},
+  "pagesChunkGroupBootstrapParams": {
+    "/legacy/about": {"otherChunks":["static/chunks/0gj--nxmdk9mb.js"],"runtimeModuleIds":[98900,161]}
+  },
   "chunkLoadingGlobal": "TURBOPACK"
 }

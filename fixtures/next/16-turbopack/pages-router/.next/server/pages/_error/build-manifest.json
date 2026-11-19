@@ -6,13 +6,14 @@
   "rootMainFiles": [],
   "pages": {
     "/_error": [
-      "static/chunks/3tygis6-airaj.js",
-      "static/chunks/21z7_s-9x_wfn.js",
-      "static/chunks/turbopack-1eunb37odaw4x.js"
+      "static/chunks/0-sqh7bbtmngn.js",
+      "static/chunks/turbopack-2u1d16houkiyo.js"
     ]
   },
   "ampFirstPages": [],
   "rootMainFilesTree": {},
-  "pagesChunkGroupBootstrapParams": {},
+  "pagesChunkGroupBootstrapParams": {
+    "/_error": {"otherChunks":["static/chunks/0-sqh7bbtmngn.js"],"runtimeModuleIds":[8900,2195]}
+  },
   "chunkLoadingGlobal": "TURBOPACK"
 }

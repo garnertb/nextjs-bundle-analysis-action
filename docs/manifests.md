@@ -31,11 +31,11 @@ The latest rebuild leaves the support verdicts unchanged, and this table still m
 
 ### app-router
 
-- Version: `Next.js v15.5.25`
+- Version: `Next.js v15.5.28`
 - Build command: `pnpm exec next build`
 - Verdict: SUPPORTED — `app-build-manifest.json.pages` still carries exact App Router route-to-chunk arrays, once each page's entry is joined with the layout entry above it (see the layout finding).
 - Shared/root representation: Shared/root chunks are repeated inside every route array in `app-build-manifest.json.pages`; compute shared JS as the set intersection across the routes' file sets.
-- Layout finding: The root layout has an entry of its own, `/layout`, and no page entry lists its chunk (`static/chunks/app/layout-551d73a218f5e1d1.js`, 634 B gzipped), yet `server/app/index.html`, `about.html` and `_not-found.html` all load it with a `<script>` tag. Each route's first load therefore adds the `/layout` entry. `next build`'s printed value leaves it out: counting it, `/about` and `/blog/[slug]` would print `105 kB`.
+- Layout finding: The root layout has an entry of its own, `/layout`, and no page entry lists its chunk (`static/chunks/app/layout-7b2e7a10d007dd4c.js`, 634 B gzipped), yet `server/app/index.html`, `about.html` and `_not-found.html` all load it with a `<script>` tag. Each route's first load therefore adds the `/layout` entry. `next build`'s printed value leaves it out: counting it, `/_not-found` would print `104 kB`, and `/about` and `/blog/[slug]` would print `105 kB`.
 - Route Handler finding: The Route Handler key is absent from `app-build-manifest.json.pages` in this build, so there is no client-JS entry to count.
 
 <details>
@@ -86,38 +86,38 @@ The latest rebuild leaves the support verdicts unchanged, and this table still m
   "pages": {
     "/_not-found/page": [
       "static/chunks/webpack-078f6dfb37dff419.js",
-      "static/chunks/4188f269-260947d4cd40a441.js",
-      "static/chunks/535-aa5fcf2e65d5bead.js",
-      "static/chunks/main-app-d9a0b0370ce0b51a.js",
-      "static/chunks/app/_not-found/page-e137af53785abd90.js"
+      "static/chunks/666922f6-b12f1e837577f4d9.js",
+      "static/chunks/540-5449163088239922.js",
+      "static/chunks/main-app-843780d195132b92.js",
+      "static/chunks/app/_not-found/page-de1c7fd73426a764.js"
     ],
     "/layout": [
       "static/chunks/webpack-078f6dfb37dff419.js",
-      "static/chunks/4188f269-260947d4cd40a441.js",
-      "static/chunks/535-aa5fcf2e65d5bead.js",
-      "static/chunks/main-app-d9a0b0370ce0b51a.js",
-      "static/chunks/app/layout-551d73a218f5e1d1.js"
+      "static/chunks/666922f6-b12f1e837577f4d9.js",
+      "static/chunks/540-5449163088239922.js",
+      "static/chunks/main-app-843780d195132b92.js",
+      "static/chunks/app/layout-7b2e7a10d007dd4c.js"
     ],
     "/blog/[slug]/page": [
       "static/chunks/webpack-078f6dfb37dff419.js",
-      "static/chunks/4188f269-260947d4cd40a441.js",
-      "static/chunks/535-aa5fcf2e65d5bead.js",
-      "static/chunks/main-app-d9a0b0370ce0b51a.js",
-      "static/chunks/app/blog/[slug]/page-fb1c70e5aab3b695.js"
+      "static/chunks/666922f6-b12f1e837577f4d9.js",
+      "static/chunks/540-5449163088239922.js",
+      "static/chunks/main-app-843780d195132b92.js",
+      "static/chunks/app/blog/[slug]/page-936ff2f2661f0ae2.js"
     ],
     "/(marketing)/about/page": [
       "static/chunks/webpack-078f6dfb37dff419.js",
-      "static/chunks/4188f269-260947d4cd40a441.js",
-      "static/chunks/535-aa5fcf2e65d5bead.js",
-      "static/chunks/main-app-d9a0b0370ce0b51a.js",
-      "static/chunks/app/(marketing)/about/page-d2550a79e55514eb.js"
+      "static/chunks/666922f6-b12f1e837577f4d9.js",
+      "static/chunks/540-5449163088239922.js",
+      "static/chunks/main-app-843780d195132b92.js",
+      "static/chunks/app/(marketing)/about/page-d9566a22f715acc6.js"
     ],
     "/page": [
       "static/chunks/webpack-078f6dfb37dff419.js",
-      "static/chunks/4188f269-260947d4cd40a441.js",
-      "static/chunks/535-aa5fcf2e65d5bead.js",
-      "static/chunks/main-app-d9a0b0370ce0b51a.js",
-      "static/chunks/app/page-1e8599392dcec9aa.js"
+      "static/chunks/666922f6-b12f1e837577f4d9.js",
+      "static/chunks/540-5449163088239922.js",
+      "static/chunks/main-app-843780d195132b92.js",
+      "static/chunks/app/page-e05b4c7e1e7a05e3.js"
     ]
   }
 }
@@ -125,17 +125,17 @@ The latest rebuild leaves the support verdicts unchanged, and this table still m
 
 **Per-route gzip totals vs `next build`**
 
-| Route          | Computed gzip bytes | `next build` printed value |  Delta | Explanation                                                                                                                              |
-| -------------- | ------------------: | -------------------------: | -----: | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `/`            |            103.5 kB |                     103 kB | +464 B | Adds the 634 B `/layout` chunk, which `next build` leaves out; the page entry alone (102.8 kB) is within the ±500 B window for `103 kB`. |
-| `/_not-found`  |            104.2 kB |                     104 kB | +156 B | Adds the 634 B `/layout` chunk; the page entry alone (103.5 kB) is within the ±500 B window for `104 kB`.                                |
-| `/about`       |            105.0 kB |                     104 kB | +981 B | Adds the 634 B `/layout` chunk; the page entry alone (104.3 kB) is within the ±500 B window for `104 kB`.                                |
-| `/api/hello`   |            102.7 kB |                     103 kB | -349 B | Within Next's ±500 B print-rounding window for `103 kB`.                                                                                 |
-| `/blog/[slug]` |            104.8 kB |                     104 kB | +796 B | Adds the 634 B `/layout` chunk; the page entry alone (104.2 kB) is within the ±500 B window for `104 kB`.                                |
+| Route          | Computed gzip bytes | `next build` printed value |    Delta | Explanation                                                                                                                              |
+| -------------- | ------------------: | -------------------------: | -------: | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`            |            103.4 kB |                     103 kB |   +406 B | Adds the 634 B `/layout` chunk, which `next build` leaves out; the page entry alone (102.8 kB) is within the ±500 B window for `103 kB`. |
+| `/_not-found`  |            104.1 kB |                     103 kB | +1,096 B | Adds the 634 B `/layout` chunk; the page entry alone (103.5 kB) is within the ±500 B window for `103 kB`.                                |
+| `/about`       |            104.9 kB |                     104 kB |   +924 B | Adds the 634 B `/layout` chunk; the page entry alone (104.3 kB) is within the ±500 B window for `104 kB`.                                |
+| `/api/hello`   |            102.6 kB |                     103 kB |   -407 B | Within Next's ±500 B print-rounding window for `103 kB`.                                                                                 |
+| `/blog/[slug]` |            104.7 kB |                     104 kB |   +737 B | Adds the 634 B `/layout` chunk; the page entry alone (104.1 kB) is within the ±500 B window for `104 kB`.                                |
 
 ### pages-router
 
-- Version: `Next.js v15.5.25`
+- Version: `Next.js v15.5.28`
 - Build command: `pnpm exec next build`
 - Verdict: SUPPORTED — `build-manifest.json.pages` still carries the per-route Pages Router entries.
 - Shared/root representation: `build-manifest.json.pages[route]` omits `build-manifest.json.pages['/_app']`, but `next build` always counts those files. Compute each Pages Router route as `pages['/_app'] ∪ pages[route]`; the `/_app` files are the shared Pages Router core.
@@ -185,26 +185,26 @@ The latest rebuild leaves the support verdicts unchanged, and this table still m
     "/_app": [
       "static/chunks/webpack-1d629d4957d3a1db.js",
       "static/chunks/framework-82fce76e1725f96c.js",
-      "static/chunks/main-a839d92ffbf5ce0c.js",
-      "static/chunks/pages/_app-751e98cbae0b42ed.js"
+      "static/chunks/main-f63ed7ab965a40fc.js",
+      "static/chunks/pages/_app-7d1ac6deae64c4e2.js"
     ],
     "/": [
       "static/chunks/webpack-1d629d4957d3a1db.js",
       "static/chunks/framework-82fce76e1725f96c.js",
-      "static/chunks/main-a839d92ffbf5ce0c.js",
-      "static/chunks/pages/index-3e6a1ddf4d3a27b1.js"
+      "static/chunks/main-f63ed7ab965a40fc.js",
+      "static/chunks/pages/index-39762e5175e686a4.js"
     ],
     "/about": [
       "static/chunks/webpack-1d629d4957d3a1db.js",
       "static/chunks/framework-82fce76e1725f96c.js",
-      "static/chunks/main-a839d92ffbf5ce0c.js",
-      "static/chunks/pages/about-f2cc1edff468bd89.js"
+      "static/chunks/main-f63ed7ab965a40fc.js",
+      "static/chunks/pages/about-237a4c8176c18a50.js"
     ],
     "/blog/[slug]": [
       "static/chunks/webpack-1d629d4957d3a1db.js",
       "static/chunks/framework-82fce76e1725f96c.js",
-      "static/chunks/main-a839d92ffbf5ce0c.js",
-      "static/chunks/pages/blog/[slug]-0a06956d6c8bfab5.js"
+      "static/chunks/main-f63ed7ab965a40fc.js",
+      "static/chunks/pages/blog/[slug]-ed2b14790dfa2c1a.js"
     ]
   }
 }
@@ -214,17 +214,17 @@ The latest rebuild leaves the support verdicts unchanged, and this table still m
 
 | Route          | Computed gzip bytes | `next build` printed value | Delta | Explanation                                              |
 | -------------- | ------------------: | -------------------------: | ----: | -------------------------------------------------------- |
-| `/`            |             82.4 kB |                    82.4 kB |  -5 B | Within Next's ±50 B print-rounding window for `82.4 kB`. |
-| `/about`       |             84.0 kB |                      84 kB | +28 B | Within Next's ±500 B print-rounding window for `84 kB`.  |
-| `/blog/[slug]` |             83.9 kB |                    83.9 kB | +33 B | Within Next's ±50 B print-rounding window for `83.9 kB`. |
+| `/`            |             82.9 kB |                    82.9 kB | -43 B | Within Next's ±50 B print-rounding window for `82.9 kB`. |
+| `/about`       |             84.5 kB |                    84.5 kB |  -9 B | Within Next's ±50 B print-rounding window for `84.5 kB`. |
+| `/blog/[slug]` |             84.4 kB |                    84.4 kB |  -8 B | Within Next's ±50 B print-rounding window for `84.4 kB`. |
 
 ### mixed
 
-- Version: `Next.js v15.5.25`
+- Version: `Next.js v15.5.28`
 - Build command: `pnpm exec next build`
 - Verdict: SUPPORTED — Pages Router routes come from `build-manifest.json.pages`; App Router routes come from `app-build-manifest.json.pages`, each page's entry joined with the layout entry above it.
 - Shared/root representation: Pages Router first-load is `pages['/_app'] ∪ pages[route]`; App Router still repeats shared chunks inside each `app-build-manifest.json.pages` array. Keep the routers separate instead of merging their shared sets.
-- Layout finding: As in `app-router`, the root layout's chunk (`static/chunks/app/layout-ab226076b3d6438a.js`, 625 B gzipped) is only in the `/layout` entry, and `server/app/index.html`, `about.html` and `_not-found.html` all load it. Counting it, `/products/[slug]` would print `105 kB`.
+- Layout finding: As in `app-router`, the root layout's chunk (`static/chunks/app/layout-5a392360f1111d87.js`, 627 B gzipped) is only in the `/layout` entry, and `server/app/index.html`, `about.html` and `_not-found.html` all load it. Counting it, `/_not-found` would print `104 kB`, and `/about` and `/products/[slug]` would print `105 kB`.
 - Route Handler finding: The Route Handler key is absent from `app-build-manifest.json.pages` in this build.
 
 <details>
@@ -278,26 +278,26 @@ The latest rebuild leaves the support verdicts unchanged, and this table still m
     "/_app": [
       "static/chunks/webpack-078f6dfb37dff419.js",
       "static/chunks/framework-82fce76e1725f96c.js",
-      "static/chunks/main-3eeb2d54a3b891d4.js",
-      "static/chunks/pages/_app-9ccdb26a9a82a367.js"
+      "static/chunks/main-ceb1497bb2d1c060.js",
+      "static/chunks/pages/_app-f179a9a89aab1589.js"
     ],
     "/legacy": [
       "static/chunks/webpack-078f6dfb37dff419.js",
       "static/chunks/framework-82fce76e1725f96c.js",
-      "static/chunks/main-3eeb2d54a3b891d4.js",
-      "static/chunks/pages/legacy-b6e1a7cd1b76f36e.js"
+      "static/chunks/main-ceb1497bb2d1c060.js",
+      "static/chunks/pages/legacy-5d6c2884e004cffb.js"
     ],
     "/legacy/about": [
       "static/chunks/webpack-078f6dfb37dff419.js",
       "static/chunks/framework-82fce76e1725f96c.js",
-      "static/chunks/main-3eeb2d54a3b891d4.js",
-      "static/chunks/pages/legacy/about-0ddb6e5b70c817cc.js"
+      "static/chunks/main-ceb1497bb2d1c060.js",
+      "static/chunks/pages/legacy/about-c56e8e07e0501e3c.js"
     ],
     "/legacy/blog/[slug]": [
       "static/chunks/webpack-078f6dfb37dff419.js",
       "static/chunks/framework-82fce76e1725f96c.js",
-      "static/chunks/main-3eeb2d54a3b891d4.js",
-      "static/chunks/pages/legacy/blog/[slug]-816afb092802ad00.js"
+      "static/chunks/main-ceb1497bb2d1c060.js",
+      "static/chunks/pages/legacy/blog/[slug]-f72139e392438276.js"
     ]
   }
 }
@@ -310,38 +310,38 @@ The latest rebuild leaves the support verdicts unchanged, and this table still m
   "pages": {
     "/_not-found/page": [
       "static/chunks/webpack-078f6dfb37dff419.js",
-      "static/chunks/4188f269-260947d4cd40a441.js",
-      "static/chunks/535-aa5fcf2e65d5bead.js",
-      "static/chunks/main-app-6acb934425cee833.js",
-      "static/chunks/app/_not-found/page-65dfda04f3977cdf.js"
+      "static/chunks/666922f6-b12f1e837577f4d9.js",
+      "static/chunks/540-5449163088239922.js",
+      "static/chunks/main-app-139844158a3c2041.js",
+      "static/chunks/app/_not-found/page-791ea62b985923af.js"
     ],
     "/layout": [
       "static/chunks/webpack-078f6dfb37dff419.js",
-      "static/chunks/4188f269-260947d4cd40a441.js",
-      "static/chunks/535-aa5fcf2e65d5bead.js",
-      "static/chunks/main-app-6acb934425cee833.js",
-      "static/chunks/app/layout-ab226076b3d6438a.js"
+      "static/chunks/666922f6-b12f1e837577f4d9.js",
+      "static/chunks/540-5449163088239922.js",
+      "static/chunks/main-app-139844158a3c2041.js",
+      "static/chunks/app/layout-5a392360f1111d87.js"
     ],
     "/(marketing)/about/page": [
       "static/chunks/webpack-078f6dfb37dff419.js",
-      "static/chunks/4188f269-260947d4cd40a441.js",
-      "static/chunks/535-aa5fcf2e65d5bead.js",
-      "static/chunks/main-app-6acb934425cee833.js",
-      "static/chunks/app/(marketing)/about/page-7a8a89167cbb1e53.js"
+      "static/chunks/666922f6-b12f1e837577f4d9.js",
+      "static/chunks/540-5449163088239922.js",
+      "static/chunks/main-app-139844158a3c2041.js",
+      "static/chunks/app/(marketing)/about/page-9175ea8961a57440.js"
     ],
     "/page": [
       "static/chunks/webpack-078f6dfb37dff419.js",
-      "static/chunks/4188f269-260947d4cd40a441.js",
-      "static/chunks/535-aa5fcf2e65d5bead.js",
-      "static/chunks/main-app-6acb934425cee833.js",
-      "static/chunks/app/page-d37c20d0a4164730.js"
+      "static/chunks/666922f6-b12f1e837577f4d9.js",
+      "static/chunks/540-5449163088239922.js",
+      "static/chunks/main-app-139844158a3c2041.js",
+      "static/chunks/app/page-87a34621a15ac21e.js"
     ],
     "/products/[slug]/page": [
       "static/chunks/webpack-078f6dfb37dff419.js",
-      "static/chunks/4188f269-260947d4cd40a441.js",
-      "static/chunks/535-aa5fcf2e65d5bead.js",
-      "static/chunks/main-app-6acb934425cee833.js",
-      "static/chunks/app/products/[slug]/page-892f5c48f0135d6f.js"
+      "static/chunks/666922f6-b12f1e837577f4d9.js",
+      "static/chunks/540-5449163088239922.js",
+      "static/chunks/main-app-139844158a3c2041.js",
+      "static/chunks/app/products/[slug]/page-3395606a942335a0.js"
     ]
   }
 }
@@ -349,20 +349,20 @@ The latest rebuild leaves the support verdicts unchanged, and this table still m
 
 **Per-route gzip totals vs `next build`**
 
-| Route                 | Computed gzip bytes | `next build` printed value |  Delta | Explanation                                                                                                                              |
-| --------------------- | ------------------: | -------------------------: | -----: | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `/legacy`             |             82.9 kB |                    82.9 kB |  -20 B | Within Next's ±50 B print-rounding window for `82.9 kB`.                                                                                 |
-| `/legacy/about`       |             84.8 kB |                    84.8 kB |  +22 B | Within Next's ±50 B print-rounding window for `84.8 kB`.                                                                                 |
-| `/legacy/blog/[slug]` |             84.4 kB |                    84.4 kB |    0 B | Within Next's ±50 B print-rounding window for `84.4 kB`.                                                                                 |
-| `/`                   |            103.3 kB |                     103 kB | +280 B | Adds the 625 B `/layout` chunk, which `next build` leaves out; the page entry alone (102.7 kB) is within the ±500 B window for `103 kB`. |
-| `/_not-found`         |            104.1 kB |                     104 kB | +145 B | Adds the 625 B `/layout` chunk; the page entry alone (103.5 kB) is within the ±500 B window for `104 kB`.                                |
-| `/about`              |            105.1 kB |                     105 kB | +148 B | Adds the 625 B `/layout` chunk; the page entry alone (104.5 kB) is within the ±500 B window for `105 kB`.                                |
-| `/api/hello`          |            102.7 kB |                     103 kB | -345 B | Within Next's ±500 B print-rounding window for `103 kB`.                                                                                 |
-| `/products/[slug]`    |            104.9 kB |                     104 kB | +901 B | Adds the 625 B `/layout` chunk; the page entry alone (104.3 kB) is within the ±500 B window for `104 kB`.                                |
+| Route                 | Computed gzip bytes | `next build` printed value |    Delta | Explanation                                                                                                                              |
+| --------------------- | ------------------: | -------------------------: | -------: | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `/legacy`             |             83.2 kB |                    83.2 kB |    +21 B | Within Next's ±50 B print-rounding window for `83.2 kB`.                                                                                 |
+| `/legacy/about`       |             85.2 kB |                    85.2 kB |    -38 B | Within Next's ±50 B print-rounding window for `85.2 kB`.                                                                                 |
+| `/legacy/blog/[slug]` |             84.7 kB |                    84.7 kB |    +40 B | Within Next's ±50 B print-rounding window for `84.7 kB`.                                                                                 |
+| `/`                   |            103.2 kB |                     103 kB |   +226 B | Adds the 627 B `/layout` chunk, which `next build` leaves out; the page entry alone (102.6 kB) is within the ±500 B window for `103 kB`. |
+| `/_not-found`         |            104.1 kB |                     103 kB | +1,091 B | Adds the 627 B `/layout` chunk; the page entry alone (103.5 kB) is within the ±500 B window for `103 kB`.                                |
+| `/about`              |            105.1 kB |                     104 kB | +1,094 B | Adds the 627 B `/layout` chunk; the page entry alone (104.5 kB) is within the ±500 B window for `104 kB`.                                |
+| `/api/hello`          |            102.6 kB |                     103 kB |   -401 B | Within Next's ±500 B print-rounding window for `103 kB`.                                                                                 |
+| `/products/[slug]`    |            104.8 kB |                     104 kB |   +846 B | Adds the 627 B `/layout` chunk; the page entry alone (104.2 kB) is within the ±500 B window for `104 kB`.                                |
 
 ### nested-layouts
 
-- Version: `Next.js v15.5.25`
+- Version: `Next.js v15.5.28`
 - Build command: `pnpm exec next build`
 - Verdict: SUPPORTED — the same `app-build-manifest.json.pages` union as `app-router`. This app has every kind of entry the union adds.
 - Manifest finding: Besides the page keys, the manifest has one key per layout and boundary file: `/global-error`, `/layout`, `/not-found`, `/(marketing)/layout`, `/blog/layout`, `/blog/template`, `/blog/error`, `/blog/loading`, `/blog/not-found`, `/dashboard/layout` and `/dashboard/@analytics/layout`. Each lists the shared runtime chunks plus that file's own chunk, and no other entry lists that chunk.
@@ -388,66 +388,66 @@ The latest rebuild leaves the support verdicts unchanged, and this table still m
   "pages": {
     "/global-error": [
       "static/chunks/webpack-078f6dfb37dff419.js",
-      "static/chunks/4188f269-260947d4cd40a441.js",
-      "static/chunks/535-aa5fcf2e65d5bead.js",
-      "static/chunks/main-app-a6604c0721203d14.js",
-      "static/chunks/app/global-error-a67b4f57d850a896.js"
+      "static/chunks/666922f6-b12f1e837577f4d9.js",
+      "static/chunks/540-5449163088239922.js",
+      "static/chunks/main-app-9c15a20d71ed91c1.js",
+      "static/chunks/app/global-error-297672ffbd612b9d.js"
     ],
     "/layout": [
       "static/chunks/webpack-078f6dfb37dff419.js",
-      "static/chunks/4188f269-260947d4cd40a441.js",
-      "static/chunks/535-aa5fcf2e65d5bead.js",
-      "static/chunks/main-app-a6604c0721203d14.js",
-      "static/chunks/app/layout-9ed4f4f09c011803.js"
+      "static/chunks/666922f6-b12f1e837577f4d9.js",
+      "static/chunks/540-5449163088239922.js",
+      "static/chunks/main-app-9c15a20d71ed91c1.js",
+      "static/chunks/app/layout-0abccb8bbb045ca1.js"
     ],
     "/not-found": [
       "static/chunks/webpack-078f6dfb37dff419.js",
-      "static/chunks/4188f269-260947d4cd40a441.js",
-      "static/chunks/535-aa5fcf2e65d5bead.js",
-      "static/chunks/main-app-a6604c0721203d14.js",
-      "static/chunks/app/not-found-65fc21af31c6f11e.js"
+      "static/chunks/666922f6-b12f1e837577f4d9.js",
+      "static/chunks/540-5449163088239922.js",
+      "static/chunks/main-app-9c15a20d71ed91c1.js",
+      "static/chunks/app/not-found-de93f799e0908098.js"
     ],
     "/blog/layout": [
       "static/chunks/webpack-078f6dfb37dff419.js",
-      "static/chunks/4188f269-260947d4cd40a441.js",
-      "static/chunks/535-aa5fcf2e65d5bead.js",
-      "static/chunks/main-app-a6604c0721203d14.js",
-      "static/chunks/app/blog/layout-1c2913aeec5ca387.js"
+      "static/chunks/666922f6-b12f1e837577f4d9.js",
+      "static/chunks/540-5449163088239922.js",
+      "static/chunks/main-app-9c15a20d71ed91c1.js",
+      "static/chunks/app/blog/layout-296d63de1aab89bc.js"
     ],
     "/blog/template": [
       "static/chunks/webpack-078f6dfb37dff419.js",
-      "static/chunks/4188f269-260947d4cd40a441.js",
-      "static/chunks/535-aa5fcf2e65d5bead.js",
-      "static/chunks/main-app-a6604c0721203d14.js",
-      "static/chunks/app/blog/template-2418ff659c8494f5.js"
+      "static/chunks/666922f6-b12f1e837577f4d9.js",
+      "static/chunks/540-5449163088239922.js",
+      "static/chunks/main-app-9c15a20d71ed91c1.js",
+      "static/chunks/app/blog/template-037026c69db99e4e.js"
     ],
     "/blog/error": [
       "static/chunks/webpack-078f6dfb37dff419.js",
-      "static/chunks/4188f269-260947d4cd40a441.js",
-      "static/chunks/535-aa5fcf2e65d5bead.js",
-      "static/chunks/main-app-a6604c0721203d14.js",
-      "static/chunks/app/blog/error-f408c4c56a8a6d9f.js"
+      "static/chunks/666922f6-b12f1e837577f4d9.js",
+      "static/chunks/540-5449163088239922.js",
+      "static/chunks/main-app-9c15a20d71ed91c1.js",
+      "static/chunks/app/blog/error-0f1bd9d2c8c84c05.js"
     ],
     "/blog/loading": [
       "static/chunks/webpack-078f6dfb37dff419.js",
-      "static/chunks/4188f269-260947d4cd40a441.js",
-      "static/chunks/535-aa5fcf2e65d5bead.js",
-      "static/chunks/main-app-a6604c0721203d14.js",
-      "static/chunks/app/blog/loading-1a1cc5c817c363e2.js"
+      "static/chunks/666922f6-b12f1e837577f4d9.js",
+      "static/chunks/540-5449163088239922.js",
+      "static/chunks/main-app-9c15a20d71ed91c1.js",
+      "static/chunks/app/blog/loading-414be27286c3e5fd.js"
     ],
     "/blog/not-found": [
       "static/chunks/webpack-078f6dfb37dff419.js",
-      "static/chunks/4188f269-260947d4cd40a441.js",
-      "static/chunks/535-aa5fcf2e65d5bead.js",
-      "static/chunks/main-app-a6604c0721203d14.js",
-      "static/chunks/app/blog/not-found-a949009c7adc354a.js"
+      "static/chunks/666922f6-b12f1e837577f4d9.js",
+      "static/chunks/540-5449163088239922.js",
+      "static/chunks/main-app-9c15a20d71ed91c1.js",
+      "static/chunks/app/blog/not-found-4d48c8a9e9e3da0a.js"
     ],
     "/blog/[slug]/page": [
       "static/chunks/webpack-078f6dfb37dff419.js",
-      "static/chunks/4188f269-260947d4cd40a441.js",
-      "static/chunks/535-aa5fcf2e65d5bead.js",
-      "static/chunks/main-app-a6604c0721203d14.js",
-      "static/chunks/app/blog/[slug]/page-19c06cff2a1fac0b.js"
+      "static/chunks/666922f6-b12f1e837577f4d9.js",
+      "static/chunks/540-5449163088239922.js",
+      "static/chunks/main-app-9c15a20d71ed91c1.js",
+      "static/chunks/app/blog/[slug]/page-b293ca51c6dcdf3e.js"
     ]
   }
 }
@@ -455,27 +455,27 @@ The latest rebuild leaves the support verdicts unchanged, and this table still m
 
 **Per-route gzip totals vs `next build`**
 
-The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzipped) add 933 B to every route.
+The root entries (`/global-error` 335 B, `/layout` 307 B, `/not-found` 293 B gzipped) add 935 B to every route.
 
 | Route                   | Computed gzip bytes | `next build` printed value |    Delta | Explanation                                                                                                                                                    |
 | ----------------------- | ------------------: | -------------------------: | -------: | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/`                     |            103.7 kB |                     103 kB |   +744 B | Adds the root entries, which `next build` leaves out; the page entry alone (102.8 kB) is within the ±500 B window for `103 kB`.                                |
-| `/_not-found`           |            103.6 kB |                     103 kB |   +581 B | Adds the root entries; the page entry alone (102.6 kB) is within the ±500 B window for `103 kB`.                                                               |
-| `/about`                |            104.1 kB |                     103 kB | +1,064 B | Adds the root entries and `/(marketing)/layout` (318 B); the page entry alone (102.8 kB) is within the ±500 B window for `103 kB`.                             |
-| `/blog/[slug]`          |            105.3 kB |                     103 kB | +2,272 B | Adds the root entries and the blog segment's five (1,510 B); the page entry alone (102.8 kB) is within the ±500 B window for `103 kB`.                         |
-| `/dashboard`            |            104.1 kB |                     103 kB | +1,076 B | Adds the root entries and `/dashboard/layout` (329 B); the page entry alone (102.8 kB) is within the ±500 B window for `103 kB`.                               |
-| `/dashboard/@analytics` |            104.4 kB |                        N/A |      N/A | `next build` prints no row for a slot (see the parallel-route finding). Adds the root entries, `/dashboard/layout` and `/dashboard/@analytics/layout` (319 B). |
-| `/dashboard/@team`      |            104.1 kB |                        N/A |      N/A | `next build` prints no row for a slot. Adds the root entries and `/dashboard/layout`.                                                                          |
+| `/`                     |            103.7 kB |                     103 kB |   +686 B | Adds the root entries, which `next build` leaves out; the page entry alone (102.8 kB) is within the ±500 B window for `103 kB`.                                |
+| `/_not-found`           |            103.5 kB |                     103 kB |   +523 B | Adds the root entries; the page entry alone (102.6 kB) is within the ±500 B window for `103 kB`.                                                               |
+| `/about`                |            104.0 kB |                     103 kB | +1,006 B | Adds the root entries and `/(marketing)/layout` (317 B); the page entry alone (102.8 kB) is within the ±500 B window for `103 kB`.                             |
+| `/blog/[slug]`          |            105.2 kB |                     103 kB | +2,219 B | Adds the root entries and the blog segment's five (1,513 B); the page entry alone (102.8 kB) is within the ±500 B window for `103 kB`.                         |
+| `/dashboard`            |            104.0 kB |                     103 kB | +1,019 B | Adds the root entries and `/dashboard/layout` (330 B); the page entry alone (102.8 kB) is within the ±500 B window for `103 kB`.                               |
+| `/dashboard/@analytics` |            104.3 kB |                        N/A |      N/A | `next build` prints no row for a slot (see the parallel-route finding). Adds the root entries, `/dashboard/layout` and `/dashboard/@analytics/layout` (318 B). |
+| `/dashboard/@team`      |            104.0 kB |                        N/A |      N/A | `next build` prints no row for a slot. Adds the root entries and `/dashboard/layout`.                                                                          |
 
 ## 15-turbopack
 
 ### app-router
 
-- Version: `Next.js v15.5.25`
+- Version: `Next.js v15.5.28`
 - Build command: `pnpm exec next build --turbopack`
 - Verdict: SUPPORTED — `app-build-manifest.json.pages` still carries exact App Router route-to-chunk arrays.
 - Shared/root representation: Shared/root chunks are repeated inside every route array in `app-build-manifest.json.pages`; compute shared JS as the set intersection across the page entries.
-- Layout finding: Unlike 15-webpack, the manifest has page keys only, with no `/layout`. Every page entry already lists the chunk with the root layout's client code (`static/chunks/51a33b9b01f841e6.js` holds `SharedShell`), and each prerendered page loads exactly its page entry's chunks plus the `nomodule` polyfills. The layout and boundary union finds no entries to add, so these numbers are the page entries'.
+- Layout finding: Unlike 15-webpack, the manifest has page keys only, with no `/layout`. Every page entry already lists the chunk with the root layout's client code (`static/chunks/1723abf6fb3e1b96.js` holds `SharedShell`), and each prerendered page loads exactly its page entry's chunks plus the `nomodule` polyfills. The layout and boundary union finds no entries to add, so these numbers are the page entries'.
 - Route Handler finding: The Route Handler key is absent from `app-build-manifest.json.pages` in this build, so there is no client-JS entry to count.
 
 <details>
@@ -522,39 +522,39 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 {
   "pages": {
     "/_not-found/page": [
-      "static/chunks/51a33b9b01f841e6.js",
-      "static/chunks/0e0c64984e756cdd.js",
-      "static/chunks/bd8e7c33d2e5cc46.js",
-      "static/chunks/c16f52ae700b9b0c.js",
-      "static/chunks/c4ad13ce314e58d1.js",
-      "static/chunks/turbopack-efa63d5110fe0380.js"
+      "static/chunks/1723abf6fb3e1b96.js",
+      "static/chunks/93ed5feff6205c84.js",
+      "static/chunks/2de4a43efaf8ad6b.js",
+      "static/chunks/8e178bc0b03a8dcc.js",
+      "static/chunks/99a256a291dea69c.js",
+      "static/chunks/turbopack-646245a19feb0869.js"
     ],
     "/blog/[slug]/page": [
-      "static/chunks/51a33b9b01f841e6.js",
-      "static/chunks/0e0c64984e756cdd.js",
-      "static/chunks/02ff9002124ddf15.js",
-      "static/chunks/bd8e7c33d2e5cc46.js",
-      "static/chunks/c16f52ae700b9b0c.js",
-      "static/chunks/c4ad13ce314e58d1.js",
-      "static/chunks/turbopack-efa63d5110fe0380.js"
+      "static/chunks/1723abf6fb3e1b96.js",
+      "static/chunks/93ed5feff6205c84.js",
+      "static/chunks/7aabea74c63ec0c5.js",
+      "static/chunks/2de4a43efaf8ad6b.js",
+      "static/chunks/8e178bc0b03a8dcc.js",
+      "static/chunks/99a256a291dea69c.js",
+      "static/chunks/turbopack-646245a19feb0869.js"
     ],
     "/(marketing)/about/page": [
-      "static/chunks/51a33b9b01f841e6.js",
-      "static/chunks/0e0c64984e756cdd.js",
-      "static/chunks/7c66f53201d75c03.js",
-      "static/chunks/bd8e7c33d2e5cc46.js",
-      "static/chunks/c16f52ae700b9b0c.js",
-      "static/chunks/c4ad13ce314e58d1.js",
-      "static/chunks/turbopack-efa63d5110fe0380.js"
+      "static/chunks/1723abf6fb3e1b96.js",
+      "static/chunks/93ed5feff6205c84.js",
+      "static/chunks/a6bddc1762069dd9.js",
+      "static/chunks/2de4a43efaf8ad6b.js",
+      "static/chunks/8e178bc0b03a8dcc.js",
+      "static/chunks/99a256a291dea69c.js",
+      "static/chunks/turbopack-646245a19feb0869.js"
     ],
     "/page": [
-      "static/chunks/51a33b9b01f841e6.js",
-      "static/chunks/0e0c64984e756cdd.js",
-      "static/chunks/3dbedee48a82dc54.js",
-      "static/chunks/bd8e7c33d2e5cc46.js",
-      "static/chunks/c16f52ae700b9b0c.js",
-      "static/chunks/c4ad13ce314e58d1.js",
-      "static/chunks/turbopack-efa63d5110fe0380.js"
+      "static/chunks/1723abf6fb3e1b96.js",
+      "static/chunks/93ed5feff6205c84.js",
+      "static/chunks/dc7b3c3c030346ef.js",
+      "static/chunks/2de4a43efaf8ad6b.js",
+      "static/chunks/8e178bc0b03a8dcc.js",
+      "static/chunks/99a256a291dea69c.js",
+      "static/chunks/turbopack-646245a19feb0869.js"
     ]
   }
 }
@@ -564,14 +564,14 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 
 | Route          | Computed gzip bytes | `next build` printed value |  Delta | Explanation                                              |
 | -------------- | ------------------: | -------------------------: | -----: | -------------------------------------------------------- |
-| `/`            |            114.2 kB |                     114 kB | +249 B | Within Next's ±500 B print-rounding window for `114 kB`. |
-| `/_not-found`  |            114.0 kB |                     114 kB |  -17 B | Within Next's ±500 B print-rounding window for `114 kB`. |
-| `/about`       |            115.8 kB |                     116 kB | -235 B | Within Next's ±500 B print-rounding window for `116 kB`. |
-| `/blog/[slug]` |            115.6 kB |                     116 kB | -422 B | Within Next's ±500 B print-rounding window for `116 kB`. |
+| `/`            |            114.4 kB |                     114 kB | +373 B | Within Next's ±500 B print-rounding window for `114 kB`. |
+| `/_not-found`  |            114.1 kB |                     114 kB | +107 B | Within Next's ±500 B print-rounding window for `114 kB`. |
+| `/about`       |            115.9 kB |                     116 kB | -111 B | Within Next's ±500 B print-rounding window for `116 kB`. |
+| `/blog/[slug]` |            115.7 kB |                     116 kB | -298 B | Within Next's ±500 B print-rounding window for `116 kB`. |
 
 ### pages-router
 
-- Version: `Next.js v15.5.25`
+- Version: `Next.js v15.5.28`
 - Build command: `pnpm exec next build --turbopack`
 - Verdict: SUPPORTED — `build-manifest.json.pages` still carries the per-route Pages Router entries.
 - Shared/root representation: `build-manifest.json.pages[route]` omits `build-manifest.json.pages['/_app']`, but `next build` always counts those files. Compute each Pages Router route as `pages['/_app'] ∪ pages[route]`; the `/_app` files are the shared Pages Router core.
@@ -620,24 +620,24 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 {
   "pages": {
     "/_app": [
-      "static/chunks/d0dccfd58b1135c8.js",
-      "static/chunks/e198ddae1ac5bf45.js",
-      "static/chunks/turbopack-c2f5c596d437c1d8.js"
+      "static/chunks/a79189fa7585459e.js",
+      "static/chunks/8273ba1c8f7a4f8d.js",
+      "static/chunks/turbopack-b07617b8291c0363.js"
     ],
     "/": [
-      "static/chunks/f5fd4f6ba8a0dcad.js",
-      "static/chunks/e198ddae1ac5bf45.js",
-      "static/chunks/turbopack-c6c674019381b143.js"
+      "static/chunks/07722972c1b59786.js",
+      "static/chunks/8273ba1c8f7a4f8d.js",
+      "static/chunks/turbopack-ab9915067cf0e44a.js"
     ],
     "/about": [
-      "static/chunks/4c56f76eb9575c97.js",
-      "static/chunks/e198ddae1ac5bf45.js",
-      "static/chunks/turbopack-1faa63ec0730db93.js"
+      "static/chunks/8fb74ddaeff94335.js",
+      "static/chunks/8273ba1c8f7a4f8d.js",
+      "static/chunks/turbopack-d8498aa1017dd867.js"
     ],
     "/blog/[slug]": [
-      "static/chunks/d0594aa76f437873.js",
-      "static/chunks/e198ddae1ac5bf45.js",
-      "static/chunks/turbopack-0a03ff1a62398227.js"
+      "static/chunks/cdf930499bc6d396.js",
+      "static/chunks/8273ba1c8f7a4f8d.js",
+      "static/chunks/turbopack-1442980d0c83aac7.js"
     ]
   }
 }
@@ -647,17 +647,17 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 
 | Route          | Computed gzip bytes | `next build` printed value | Delta | Explanation                                              |
 | -------------- | ------------------: | -------------------------: | ----: | -------------------------------------------------------- |
-| `/`            |             93.5 kB |                    93.5 kB | -25 B | Within Next's ±50 B print-rounding window for `93.5 kB`. |
-| `/about`       |             95.5 kB |                    95.5 kB |  +7 B | Within Next's ±50 B print-rounding window for `95.5 kB`. |
-| `/blog/[slug]` |             95.3 kB |                    95.3 kB | -11 B | Within Next's ±50 B print-rounding window for `95.3 kB`. |
+| `/`            |             93.6 kB |                    93.6 kB | -24 B | Within Next's ±50 B print-rounding window for `93.6 kB`. |
+| `/about`       |             95.6 kB |                    95.6 kB |  -1 B | Within Next's ±50 B print-rounding window for `95.6 kB`. |
+| `/blog/[slug]` |             95.4 kB |                    95.4 kB | -15 B | Within Next's ±50 B print-rounding window for `95.4 kB`. |
 
 ### mixed
 
-- Version: `Next.js v15.5.25`
+- Version: `Next.js v15.5.28`
 - Build command: `pnpm exec next build --turbopack`
 - Verdict: SUPPORTED — Pages Router routes come from `build-manifest.json.pages`; App Router routes come from `app-build-manifest.json.pages`.
 - Shared/root representation: Pages Router first-load is `pages['/_app'] ∪ pages[route]`; App Router still repeats shared chunks inside each `app-build-manifest.json.pages` array. Keep the routers separate instead of merging their shared sets.
-- Layout finding: As in `app-router`, there's no `/layout` key, every page entry lists the chunk with the root layout's code (`static/chunks/48655ed6c9c9fe09.js`), and each prerendered page loads exactly its page entry's chunks plus the polyfills.
+- Layout finding: As in `app-router`, there's no `/layout` key, every page entry lists the chunk with the root layout's code (`static/chunks/9428cffeaa8092c3.js`), and each prerendered page loads exactly its page entry's chunks plus the polyfills.
 - Route Handler finding: The Route Handler key is absent from `app-build-manifest.json.pages` in this build.
 
 <details>
@@ -704,24 +704,24 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 {
   "pages": {
     "/_app": [
-      "static/chunks/d409fb7ec1793f8e.js",
-      "static/chunks/032fc25b5471a96d.js",
-      "static/chunks/turbopack-4ba9fcd6544ae823.js"
+      "static/chunks/47f61d5d24c2b477.js",
+      "static/chunks/45ef1499ebb9d969.js",
+      "static/chunks/turbopack-a4e90873642d2f0c.js"
     ],
     "/legacy": [
-      "static/chunks/eef5a39e0bb23e1a.js",
-      "static/chunks/032fc25b5471a96d.js",
-      "static/chunks/turbopack-28b7e45292d7cfa9.js"
+      "static/chunks/37938f535f02f7f5.js",
+      "static/chunks/45ef1499ebb9d969.js",
+      "static/chunks/turbopack-5d40d5e2d9cbe9d5.js"
     ],
     "/legacy/about": [
-      "static/chunks/aab191742d34e7c7.js",
-      "static/chunks/032fc25b5471a96d.js",
-      "static/chunks/turbopack-1c061c89028ac28b.js"
+      "static/chunks/8d1a69bcfe4fad21.js",
+      "static/chunks/45ef1499ebb9d969.js",
+      "static/chunks/turbopack-1bffa208a4115abf.js"
     ],
     "/legacy/blog/[slug]": [
-      "static/chunks/d454829be9375bbe.js",
-      "static/chunks/032fc25b5471a96d.js",
-      "static/chunks/turbopack-6217826459035015.js"
+      "static/chunks/3e1c7982c34fe58b.js",
+      "static/chunks/45ef1499ebb9d969.js",
+      "static/chunks/turbopack-c738492d7247811e.js"
     ]
   }
 }
@@ -733,38 +733,38 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 {
   "pages": {
     "/_not-found/page": [
-      "static/chunks/48655ed6c9c9fe09.js",
-      "static/chunks/0e0c64984e756cdd.js",
-      "static/chunks/bd8e7c33d2e5cc46.js",
-      "static/chunks/c16f52ae700b9b0c.js",
-      "static/chunks/c4ad13ce314e58d1.js",
-      "static/chunks/turbopack-efa63d5110fe0380.js"
+      "static/chunks/9428cffeaa8092c3.js",
+      "static/chunks/93ed5feff6205c84.js",
+      "static/chunks/2de4a43efaf8ad6b.js",
+      "static/chunks/8e178bc0b03a8dcc.js",
+      "static/chunks/99a256a291dea69c.js",
+      "static/chunks/turbopack-646245a19feb0869.js"
     ],
     "/(marketing)/about/page": [
-      "static/chunks/48655ed6c9c9fe09.js",
-      "static/chunks/0e0c64984e756cdd.js",
-      "static/chunks/02d90e606d9b4404.js",
-      "static/chunks/bd8e7c33d2e5cc46.js",
-      "static/chunks/c16f52ae700b9b0c.js",
-      "static/chunks/c4ad13ce314e58d1.js",
-      "static/chunks/turbopack-efa63d5110fe0380.js"
+      "static/chunks/9428cffeaa8092c3.js",
+      "static/chunks/93ed5feff6205c84.js",
+      "static/chunks/4ab5a1315f193bd2.js",
+      "static/chunks/2de4a43efaf8ad6b.js",
+      "static/chunks/8e178bc0b03a8dcc.js",
+      "static/chunks/99a256a291dea69c.js",
+      "static/chunks/turbopack-646245a19feb0869.js"
     ],
     "/page": [
-      "static/chunks/48655ed6c9c9fe09.js",
-      "static/chunks/0e0c64984e756cdd.js",
-      "static/chunks/bd8e7c33d2e5cc46.js",
-      "static/chunks/c16f52ae700b9b0c.js",
-      "static/chunks/c4ad13ce314e58d1.js",
-      "static/chunks/turbopack-efa63d5110fe0380.js"
+      "static/chunks/9428cffeaa8092c3.js",
+      "static/chunks/93ed5feff6205c84.js",
+      "static/chunks/2de4a43efaf8ad6b.js",
+      "static/chunks/8e178bc0b03a8dcc.js",
+      "static/chunks/99a256a291dea69c.js",
+      "static/chunks/turbopack-646245a19feb0869.js"
     ],
     "/products/[slug]/page": [
-      "static/chunks/48655ed6c9c9fe09.js",
-      "static/chunks/0e0c64984e756cdd.js",
-      "static/chunks/25313a698714a344.js",
-      "static/chunks/bd8e7c33d2e5cc46.js",
-      "static/chunks/c16f52ae700b9b0c.js",
-      "static/chunks/c4ad13ce314e58d1.js",
-      "static/chunks/turbopack-efa63d5110fe0380.js"
+      "static/chunks/9428cffeaa8092c3.js",
+      "static/chunks/93ed5feff6205c84.js",
+      "static/chunks/be5d84eeb59cb565.js",
+      "static/chunks/2de4a43efaf8ad6b.js",
+      "static/chunks/8e178bc0b03a8dcc.js",
+      "static/chunks/99a256a291dea69c.js",
+      "static/chunks/turbopack-646245a19feb0869.js"
     ]
   }
 }
@@ -774,17 +774,17 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 
 | Route                 | Computed gzip bytes | `next build` printed value |  Delta | Explanation                                              |
 | --------------------- | ------------------: | -------------------------: | -----: | -------------------------------------------------------- |
-| `/legacy`             |             93.3 kB |                    93.3 kB |  -15 B | Within Next's ±50 B print-rounding window for `93.3 kB`. |
-| `/legacy/about`       |             95.6 kB |                    95.6 kB |   +2 B | Within Next's ±50 B print-rounding window for `95.6 kB`. |
-| `/legacy/blog/[slug]` |             95.1 kB |                    95.1 kB |  +22 B | Within Next's ±50 B print-rounding window for `95.1 kB`. |
-| `/`                   |            114.0 kB |                     114 kB |  -25 B | Within Next's ±500 B print-rounding window for `114 kB`. |
-| `/_not-found`         |            114.0 kB |                     114 kB |  -25 B | Within Next's ±500 B print-rounding window for `114 kB`. |
-| `/about`              |            115.9 kB |                     116 kB |  -67 B | Within Next's ±500 B print-rounding window for `116 kB`. |
-| `/products/[slug]`    |            115.7 kB |                     116 kB | -318 B | Within Next's ±500 B print-rounding window for `116 kB`. |
+| `/legacy`             |             93.4 kB |                    93.4 kB |   -6 B | Within Next's ±50 B print-rounding window for `93.4 kB`. |
+| `/legacy/about`       |             95.7 kB |                    95.7 kB |   +7 B | Within Next's ±50 B print-rounding window for `95.7 kB`. |
+| `/legacy/blog/[slug]` |             95.2 kB |                    95.2 kB |  +25 B | Within Next's ±50 B print-rounding window for `95.2 kB`. |
+| `/`                   |            114.1 kB |                     114 kB |  +98 B | Within Next's ±500 B print-rounding window for `114 kB`. |
+| `/_not-found`         |            114.1 kB |                     114 kB |  +98 B | Within Next's ±500 B print-rounding window for `114 kB`. |
+| `/about`              |            116.1 kB |                     116 kB |  +57 B | Within Next's ±500 B print-rounding window for `116 kB`. |
+| `/products/[slug]`    |            115.8 kB |                     116 kB | -194 B | Within Next's ±500 B print-rounding window for `116 kB`. |
 
 ### nested-layouts
 
-- Version: `Next.js v15.5.25`
+- Version: `Next.js v15.5.28`
 - Build command: `pnpm exec next build --turbopack`
 - Verdict: SUPPORTED — `app-build-manifest.json.pages` carries exact App Router route-to-chunk arrays, layouts and boundaries included.
 - Manifest finding: The manifest has the seven page keys and nothing else: no `/layout`, `/not-found`, `/global-error`, or any of the blog segment's or the slots' entries that 15-webpack lists. Every page entry already lists the chunks with that code: the root layout's, root `not-found`'s and `global-error`'s code sits in chunks every entry lists, and `/blog/[slug]/page` adds six chunks holding the blog segment's `layout`, `template`, `error`, `loading` and `not-found` and the page itself. Each prerendered page loads exactly its page entry's chunks plus the `nomodule` polyfills, so the 15-webpack union adds nothing here.
@@ -798,31 +798,31 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 {
   "pages": {
     "/page": [
-      "static/chunks/55257888a553031c.js",
-      "static/chunks/0e0c64984e756cdd.js",
-      "static/chunks/03487153f22fe8e1.js",
-      "static/chunks/2bcba88be9affc5a.js",
-      "static/chunks/1f2fffe0394d7e7e.js",
-      "static/chunks/fadb1a73c271ce26.js",
-      "static/chunks/eb961526d82e200c.js",
-      "static/chunks/344792388b4cc5c0.js",
-      "static/chunks/turbopack-477fa504844b8533.js"
+      "static/chunks/44c37dcf1450b1e6.js",
+      "static/chunks/93ed5feff6205c84.js",
+      "static/chunks/e02658ae4ff31906.js",
+      "static/chunks/bb9e3712548f83c8.js",
+      "static/chunks/31456012ef55b7d2.js",
+      "static/chunks/fe6e165de9e05016.js",
+      "static/chunks/5d4e467e6c07f371.js",
+      "static/chunks/937020354acae76a.js",
+      "static/chunks/turbopack-7ddd694f060c8f88.js"
     ],
     "/blog/[slug]/page": [
-      "static/chunks/55257888a553031c.js",
-      "static/chunks/0e0c64984e756cdd.js",
-      "static/chunks/03487153f22fe8e1.js",
-      "static/chunks/2bcba88be9affc5a.js",
-      "static/chunks/00561c2af9eff98e.js",
-      "static/chunks/f412b893327a8755.js",
-      "static/chunks/4d6140da02f4502e.js",
-      "static/chunks/620b535e7ec8945b.js",
-      "static/chunks/b63d4efa6f3070a8.js",
-      "static/chunks/ce09ddb7415f0f10.js",
-      "static/chunks/fadb1a73c271ce26.js",
-      "static/chunks/eb961526d82e200c.js",
-      "static/chunks/344792388b4cc5c0.js",
-      "static/chunks/turbopack-477fa504844b8533.js"
+      "static/chunks/44c37dcf1450b1e6.js",
+      "static/chunks/93ed5feff6205c84.js",
+      "static/chunks/e02658ae4ff31906.js",
+      "static/chunks/bb9e3712548f83c8.js",
+      "static/chunks/dd1d96c1698ba8da.js",
+      "static/chunks/5519ffbdcccdb330.js",
+      "static/chunks/9f33e6e06c855d0f.js",
+      "static/chunks/ff9eb8f63bc26bb0.js",
+      "static/chunks/efb5669c6741448c.js",
+      "static/chunks/2cc4e614c4d91853.js",
+      "static/chunks/fe6e165de9e05016.js",
+      "static/chunks/5d4e467e6c07f371.js",
+      "static/chunks/937020354acae76a.js",
+      "static/chunks/turbopack-7ddd694f060c8f88.js"
     ]
   }
 }
@@ -832,27 +832,27 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 
 | Route                   | Computed gzip bytes | `next build` printed value |  Delta | Explanation                                                         |
 | ----------------------- | ------------------: | -------------------------: | -----: | ------------------------------------------------------------------- |
-| `/`                     |            114.2 kB |                     114 kB | +162 B | Within Next's ±500 B print-rounding window for `114 kB`.            |
-| `/_not-found`           |            113.9 kB |                     114 kB |  -84 B | Within Next's ±500 B print-rounding window for `114 kB`.            |
-| `/about`                |            114.4 kB |                     114 kB | +444 B | Within Next's ±500 B print-rounding window for `114 kB`.            |
-| `/blog/[slug]`          |            115.5 kB |                     116 kB | -497 B | Within Next's ±500 B print-rounding window for `116 kB`.            |
-| `/dashboard`            |            115.2 kB |                     115 kB | +236 B | Within Next's ±500 B print-rounding window for `115 kB`.            |
-| `/dashboard/@analytics` |            115.2 kB |                        N/A |    N/A | `next build` prints no row for a slot; same chunks as `/dashboard`. |
-| `/dashboard/@team`      |            115.2 kB |                        N/A |    N/A | `next build` prints no row for a slot; same chunks as `/dashboard`. |
+| `/`                     |            114.3 kB |                     114 kB | +304 B | Within Next's ±500 B print-rounding window for `114 kB`.            |
+| `/_not-found`           |            114.1 kB |                     114 kB |  +56 B | Within Next's ±500 B print-rounding window for `114 kB`.            |
+| `/about`                |            114.6 kB |                     115 kB | -416 B | Within Next's ±500 B print-rounding window for `115 kB`.            |
+| `/blog/[slug]`          |            115.6 kB |                     116 kB | -358 B | Within Next's ±500 B print-rounding window for `116 kB`.            |
+| `/dashboard`            |            115.4 kB |                     115 kB | +376 B | Within Next's ±500 B print-rounding window for `115 kB`.            |
+| `/dashboard/@analytics` |            115.4 kB |                        N/A |    N/A | `next build` prints no row for a slot; same chunks as `/dashboard`. |
+| `/dashboard/@team`      |            115.4 kB |                        N/A |    N/A | `next build` prints no row for a slot; same chunks as `/dashboard`. |
 
 ## 16-webpack
 
 ### app-router
 
-- Version: `Next.js v16.3.5`
+- Version: `Next.js v16.4.5`
 - Build command: `pnpm exec next build --webpack`
 - Verdict: UNSUPPORTED — there is still no reliable App Router manifest that maps route -> client chunk list under Next 16 webpack builds. No `app-build-manifest.json` is generated in this combo.
 - Shared/root representation: `build-manifest.json.rootMainFiles` still exposes the shared bootstrap, but `build-manifest.json` has no per-page App Router entries. The only retained route-specific source is `server/app/**/_client-reference-manifest.js`, and those files still do not expose `entryJSFiles`.
 - Route Handler finding: The Route Handler `route_client-reference-manifest.js` is empty (`clientModules: {}`), so handlers still appear to carry no client JS. The unsupported part is page attribution, not handler detection.
 - Why unsupported:
-  - `fixtures/next/16-webpack/app-router/.next/server/app/blog/[slug]/page_client-reference-manifest.js` shows the precise leak shape: `app/(marketing)/about/about-client.tsx` is correctly empty there, but `app/_components/home-client.tsx` still carries the root page chunk `static/chunks/app/page-e275a0ad40e87fcb.js` into `/blog/[slug]`.
+  - `fixtures/next/16-webpack/app-router/.next/server/app/blog/[slug]/page_client-reference-manifest.js` shows the precise leak shape: `app/(marketing)/about/about-client.tsx` is correctly empty there, but `app/_components/home-client.tsx` still carries the root page chunk `static/chunks/app/page-6faf897100a0f05e.js` into `/blog/[slug]`.
   - `fixtures/next/16-webpack/app-router/.next/server/app/(marketing)/about/page_client-reference-manifest.js` shows the mirror image: `app/blog/[slug]/blog-client.tsx` is correctly empty on `/about`, while the same root `app/page` chunk still leaks in through `app/_components/home-client.tsx`. In both files, `entryCSSFiles` includes `/__fixture__/`, `app/layout`, `app/page`, and the route's own page path — the root page entry is present on every page manifest, not just its own.
-  - The new prerendered HTML evidence independently shows the manifest is unreliable, not merely noisy: `fixtures/next/16-webpack/app-router/.next/server/app/about.html` loads `/_next/static/chunks/846cdde3-bbc12c05ca7d2ed5.js, /_next/static/chunks/840-af6eaf733920f9a9.js, /_next/static/chunks/main-app-49649dd7c0625d27.js, /_next/static/chunks/app/layout-cd7e5f128b372de4.js, /_next/static/chunks/app/(marketing)/about/page-e76052639c5e42bd.js, /_next/static/chunks/polyfills-42372ed130431b0a.js, /_next/static/chunks/webpack-70c336f9a46f13b1.js`, while `fixtures/next/16-webpack/app-router/.next/server/app/index.html` loads `/_next/static/chunks/846cdde3-bbc12c05ca7d2ed5.js, /_next/static/chunks/840-af6eaf733920f9a9.js, /_next/static/chunks/main-app-49649dd7c0625d27.js, /_next/static/chunks/app/layout-cd7e5f128b372de4.js, /_next/static/chunks/app/page-e275a0ad40e87fcb.js, /_next/static/chunks/polyfills-42372ed130431b0a.js, /_next/static/chunks/webpack-70c336f9a46f13b1.js`. `/about` does load its own `app/(marketing)/about/page-*.js` chunk, but it does **not** load the root page's `app/page-*.js` chunk even though `/about`'s `page_client-reference-manifest.js` claims that root client component has a non-empty `chunks` array.
+  - The new prerendered HTML evidence independently shows the manifest is unreliable, not merely noisy: `fixtures/next/16-webpack/app-router/.next/server/app/about.html` loads `/_next/static/chunks/85062f47-16858315c3b1e3c8.js, /_next/static/chunks/626-e341c6c306baaf93.js, /_next/static/chunks/main-app-de87330fe797fb5e.js, /_next/static/chunks/app/layout-050ba86c16ba028f.js, /_next/static/chunks/app/(marketing)/about/page-24a15dfc4b7a8a82.js, /_next/static/chunks/polyfills-42372ed130431b0a.js, /_next/static/chunks/webpack-70c336f9a46f13b1.js`, while `fixtures/next/16-webpack/app-router/.next/server/app/index.html` loads `/_next/static/chunks/85062f47-16858315c3b1e3c8.js, /_next/static/chunks/626-e341c6c306baaf93.js, /_next/static/chunks/main-app-de87330fe797fb5e.js, /_next/static/chunks/app/layout-050ba86c16ba028f.js, /_next/static/chunks/app/page-6faf897100a0f05e.js, /_next/static/chunks/polyfills-42372ed130431b0a.js, /_next/static/chunks/webpack-70c336f9a46f13b1.js`. `/about` does load its own `app/(marketing)/about/page-*.js` chunk, but it does **not** load the root page's `app/page-*.js` chunk even though `/about`'s `page_client-reference-manifest.js` claims that root client component has a non-empty `chunks` array.
 
 <details>
 <summary><code>find .next -maxdepth 2 -type f</code></summary>
@@ -885,6 +885,7 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 - `server/next-font-manifest.json`
 - `server/pages-manifest.json`
 - `server/prefetch-hints.json`
+- `server/preview-props.json`
 - `server/server-reference-manifest.js`
 - `server/server-reference-manifest.json`
 - `server/webpack-runtime.js`
@@ -904,20 +905,20 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 {
   "build-manifest.rootMainFiles": [
     "static/chunks/webpack-70c336f9a46f13b1.js",
-    "static/chunks/846cdde3-bbc12c05ca7d2ed5.js",
-    "static/chunks/840-af6eaf733920f9a9.js",
-    "static/chunks/main-app-49649dd7c0625d27.js"
+    "static/chunks/85062f47-16858315c3b1e3c8.js",
+    "static/chunks/626-e341c6c306baaf93.js",
+    "static/chunks/main-app-de87330fe797fb5e.js"
   ],
   "route": "/blog/[slug]/page",
   "entryJSFiles": "<absent>",
   "clientModules_subset": {
-    "app/_components/shared-shell.tsx": ["177", "static/chunks/app/layout-cd7e5f128b372de4.js"],
+    "app/_components/shared-shell.tsx": ["177", "static/chunks/app/layout-050ba86c16ba028f.js"],
     "app/(marketing)/about/about-client.tsx": [],
     "app/blog/[slug]/blog-client.tsx": [
       "953",
-      "static/chunks/app/blog/%5Bslug%5D/page-9f2d0d2bd0db979d.js"
+      "static/chunks/app/blog/%5Bslug%5D/page-02a8462ff82dd19d.js"
     ],
-    "app/_components/home-client.tsx": ["974", "static/chunks/app/page-e275a0ad40e87fcb.js"]
+    "app/_components/home-client.tsx": ["974", "static/chunks/app/page-6faf897100a0f05e.js"]
   },
   "entryCSSFiles_keys": ["/__fixture__/", "app/layout", "app/page", "app/blog/[slug]/page"]
 }
@@ -929,20 +930,20 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 {
   "build-manifest.rootMainFiles": [
     "static/chunks/webpack-70c336f9a46f13b1.js",
-    "static/chunks/846cdde3-bbc12c05ca7d2ed5.js",
-    "static/chunks/840-af6eaf733920f9a9.js",
-    "static/chunks/main-app-49649dd7c0625d27.js"
+    "static/chunks/85062f47-16858315c3b1e3c8.js",
+    "static/chunks/626-e341c6c306baaf93.js",
+    "static/chunks/main-app-de87330fe797fb5e.js"
   ],
   "route": "/(marketing)/about/page",
   "entryJSFiles": "<absent>",
   "clientModules_subset": {
-    "app/_components/shared-shell.tsx": ["177", "static/chunks/app/layout-cd7e5f128b372de4.js"],
+    "app/_components/shared-shell.tsx": ["177", "static/chunks/app/layout-050ba86c16ba028f.js"],
     "app/(marketing)/about/about-client.tsx": [
       "880",
-      "static/chunks/app/(marketing)/about/page-e76052639c5e42bd.js"
+      "static/chunks/app/(marketing)/about/page-24a15dfc4b7a8a82.js"
     ],
     "app/blog/[slug]/blog-client.tsx": [],
-    "app/_components/home-client.tsx": ["974", "static/chunks/app/page-e275a0ad40e87fcb.js"]
+    "app/_components/home-client.tsx": ["974", "static/chunks/app/page-6faf897100a0f05e.js"]
   },
   "entryCSSFiles_keys": ["/__fixture__/", "app/layout", "app/page", "app/(marketing)/about/page"]
 }
@@ -953,11 +954,11 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 ```json
 {
   "script_srcs": [
-    "/_next/static/chunks/846cdde3-bbc12c05ca7d2ed5.js",
-    "/_next/static/chunks/840-af6eaf733920f9a9.js",
-    "/_next/static/chunks/main-app-49649dd7c0625d27.js",
-    "/_next/static/chunks/app/layout-cd7e5f128b372de4.js",
-    "/_next/static/chunks/app/(marketing)/about/page-e76052639c5e42bd.js",
+    "/_next/static/chunks/85062f47-16858315c3b1e3c8.js",
+    "/_next/static/chunks/626-e341c6c306baaf93.js",
+    "/_next/static/chunks/main-app-de87330fe797fb5e.js",
+    "/_next/static/chunks/app/layout-050ba86c16ba028f.js",
+    "/_next/static/chunks/app/(marketing)/about/page-24a15dfc4b7a8a82.js",
     "/_next/static/chunks/polyfills-42372ed130431b0a.js",
     "/_next/static/chunks/webpack-70c336f9a46f13b1.js"
   ]
@@ -969,11 +970,11 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 ```json
 {
   "script_srcs": [
-    "/_next/static/chunks/846cdde3-bbc12c05ca7d2ed5.js",
-    "/_next/static/chunks/840-af6eaf733920f9a9.js",
-    "/_next/static/chunks/main-app-49649dd7c0625d27.js",
-    "/_next/static/chunks/app/layout-cd7e5f128b372de4.js",
-    "/_next/static/chunks/app/page-e275a0ad40e87fcb.js",
+    "/_next/static/chunks/85062f47-16858315c3b1e3c8.js",
+    "/_next/static/chunks/626-e341c6c306baaf93.js",
+    "/_next/static/chunks/main-app-de87330fe797fb5e.js",
+    "/_next/static/chunks/app/layout-050ba86c16ba028f.js",
+    "/_next/static/chunks/app/page-6faf897100a0f05e.js",
     "/_next/static/chunks/polyfills-42372ed130431b0a.js",
     "/_next/static/chunks/webpack-70c336f9a46f13b1.js"
   ]
@@ -988,7 +989,7 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 
 ### pages-router
 
-- Version: `Next.js v16.3.5`
+- Version: `Next.js v16.4.5`
 - Build command: `pnpm exec next build --webpack`
 - Verdict: SUPPORTED — `build-manifest.json.pages` still carries the per-route Pages Router entries. Next 16 no longer prints a `First Load JS` column, but the route arrays themselves are still reliable.
 - Shared/root representation: `build-manifest.json.pages[route]` omits `build-manifest.json.pages['/_app']`, but `next build` always counts those files. Compute each Pages Router route as `pages['/_app'] ∪ pages[route]`; the `/_app` files are the shared Pages Router core.
@@ -1024,6 +1025,7 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 - `server/next-font-manifest.js`
 - `server/next-font-manifest.json`
 - `server/pages-manifest.json`
+- `server/preview-props.json`
 - `server/webpack-runtime.js`
 - `trace`
 - `trace-build`
@@ -1041,27 +1043,27 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
   "pages": {
     "/_app": [
       "static/chunks/webpack-8b8979e85a85b71d.js",
-      "static/chunks/framework-147d2e36b83bcf32.js",
-      "static/chunks/main-960ccc25d30c261b.js",
-      "static/chunks/pages/_app-97183e60c4fe2493.js"
+      "static/chunks/framework-24b9e1192bb41b3a.js",
+      "static/chunks/main-6e5c698b4b5f6bf9.js",
+      "static/chunks/pages/_app-6741ca716e1cb1d3.js"
     ],
     "/": [
       "static/chunks/webpack-8b8979e85a85b71d.js",
-      "static/chunks/framework-147d2e36b83bcf32.js",
-      "static/chunks/main-960ccc25d30c261b.js",
-      "static/chunks/pages/index-bca13d2e243b0dad.js"
+      "static/chunks/framework-24b9e1192bb41b3a.js",
+      "static/chunks/main-6e5c698b4b5f6bf9.js",
+      "static/chunks/pages/index-f4b1eaa351fc1567.js"
     ],
     "/about": [
       "static/chunks/webpack-8b8979e85a85b71d.js",
-      "static/chunks/framework-147d2e36b83bcf32.js",
-      "static/chunks/main-960ccc25d30c261b.js",
-      "static/chunks/pages/about-88a42692d7a9f140.js"
+      "static/chunks/framework-24b9e1192bb41b3a.js",
+      "static/chunks/main-6e5c698b4b5f6bf9.js",
+      "static/chunks/pages/about-0d46c1bd45568a53.js"
     ],
     "/blog/[slug]": [
       "static/chunks/webpack-8b8979e85a85b71d.js",
-      "static/chunks/framework-147d2e36b83bcf32.js",
-      "static/chunks/main-960ccc25d30c261b.js",
-      "static/chunks/pages/blog/[slug]-71bdbb6f1066391c.js"
+      "static/chunks/framework-24b9e1192bb41b3a.js",
+      "static/chunks/main-6e5c698b4b5f6bf9.js",
+      "static/chunks/pages/blog/[slug]-46ed7c3f8f630f59.js"
     ]
   }
 }
@@ -1071,13 +1073,13 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 
 | Route          | Computed gzip bytes | `next build` printed value | Delta | Explanation                               |
 | -------------- | ------------------: | -------------------------: | ----: | ----------------------------------------- |
-| `/`            |             86.5 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column. |
-| `/about`       |             88.1 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column. |
-| `/blog/[slug]` |             88.0 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column. |
+| `/`            |             86.8 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column. |
+| `/about`       |             88.5 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column. |
+| `/blog/[slug]` |             88.3 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column. |
 
 ### mixed
 
-- Version: `Next.js v16.3.5`
+- Version: `Next.js v16.4.5`
 - Build command: `pnpm exec next build --webpack`
 - Verdict: SUPPORTED for Pages Router routes — `build-manifest.json.pages` still covers that half, but the App Router half remains unsupported.
 - Shared/root representation: Pages Router first-load is `pages['/_app'] ∪ pages[route]`. The App Router half only exposes `build-manifest.json.rootMainFiles` plus ambiguous `server/app/**/_client-reference-manifest.js` files, so keep the routers separate and only compute the Pages Router half here.
@@ -1117,6 +1119,7 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 - `server/next-font-manifest.json`
 - `server/pages-manifest.json`
 - `server/prefetch-hints.json`
+- `server/preview-props.json`
 - `server/server-reference-manifest.js`
 - `server/server-reference-manifest.json`
 - `server/webpack-runtime.js`
@@ -1136,34 +1139,34 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 {
   "rootMainFiles": [
     "static/chunks/webpack-70c336f9a46f13b1.js",
-    "static/chunks/846cdde3-bbc12c05ca7d2ed5.js",
-    "static/chunks/840-af6eaf733920f9a9.js",
-    "static/chunks/main-app-f96613bf9d5ebfa7.js"
+    "static/chunks/85062f47-16858315c3b1e3c8.js",
+    "static/chunks/626-e341c6c306baaf93.js",
+    "static/chunks/main-app-ec179116ea4dbe7d.js"
   ],
   "pages": {
     "/_app": [
       "static/chunks/webpack-70c336f9a46f13b1.js",
-      "static/chunks/framework-147d2e36b83bcf32.js",
-      "static/chunks/main-a4abc6004529b25c.js",
-      "static/chunks/pages/_app-eb59119d245f26d1.js"
+      "static/chunks/framework-24b9e1192bb41b3a.js",
+      "static/chunks/main-bc44e2e8e3b42ba9.js",
+      "static/chunks/pages/_app-4efd84cef24d12c4.js"
     ],
     "/legacy": [
       "static/chunks/webpack-70c336f9a46f13b1.js",
-      "static/chunks/framework-147d2e36b83bcf32.js",
-      "static/chunks/main-a4abc6004529b25c.js",
-      "static/chunks/pages/legacy-3415fba2be7f15e4.js"
+      "static/chunks/framework-24b9e1192bb41b3a.js",
+      "static/chunks/main-bc44e2e8e3b42ba9.js",
+      "static/chunks/pages/legacy-7760e89c9acd4ab7.js"
     ],
     "/legacy/about": [
       "static/chunks/webpack-70c336f9a46f13b1.js",
-      "static/chunks/framework-147d2e36b83bcf32.js",
-      "static/chunks/main-a4abc6004529b25c.js",
-      "static/chunks/pages/legacy/about-b841754588501cae.js"
+      "static/chunks/framework-24b9e1192bb41b3a.js",
+      "static/chunks/main-bc44e2e8e3b42ba9.js",
+      "static/chunks/pages/legacy/about-57047bef58ee0050.js"
     ],
     "/legacy/blog/[slug]": [
       "static/chunks/webpack-70c336f9a46f13b1.js",
-      "static/chunks/framework-147d2e36b83bcf32.js",
-      "static/chunks/main-a4abc6004529b25c.js",
-      "static/chunks/pages/legacy/blog/[slug]-c99c5723dd2d3937.js"
+      "static/chunks/framework-24b9e1192bb41b3a.js",
+      "static/chunks/main-bc44e2e8e3b42ba9.js",
+      "static/chunks/pages/legacy/blog/[slug]-a6a7dec8b62e5f27.js"
     ]
   }
 }
@@ -1175,18 +1178,18 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 {
   "build-manifest.rootMainFiles": [
     "static/chunks/webpack-70c336f9a46f13b1.js",
-    "static/chunks/846cdde3-bbc12c05ca7d2ed5.js",
-    "static/chunks/840-af6eaf733920f9a9.js",
-    "static/chunks/main-app-f96613bf9d5ebfa7.js"
+    "static/chunks/85062f47-16858315c3b1e3c8.js",
+    "static/chunks/626-e341c6c306baaf93.js",
+    "static/chunks/main-app-ec179116ea4dbe7d.js"
   ],
   "route": "/products/[slug]/page",
   "entryJSFiles": "<absent>",
   "clientModules_subset": {
-    "shared/shared-shell.tsx": ["177", "static/chunks/app/layout-a284bc830340e254.js"],
+    "shared/shared-shell.tsx": ["177", "static/chunks/app/layout-32ba3e07a91d8baa.js"],
     "app/(marketing)/about/app-about-client.tsx": [],
     "app/products/[slug]/product-client.tsx": [
       "221",
-      "static/chunks/app/products/%5Bslug%5D/page-f04882c2a17d15c5.js"
+      "static/chunks/app/products/%5Bslug%5D/page-4fe25ecec485bfcc.js"
     ]
   },
   "entryCSSFiles_keys": ["/__fixture__/", "app/layout", "app/page", "app/products/[slug]/page"]
@@ -1197,15 +1200,15 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 
 | Route                 | Computed gzip bytes | `next build` printed value | Delta | Explanation                               |
 | --------------------- | ------------------: | -------------------------: | ----: | ----------------------------------------- |
-| `/legacy`             |             86.9 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column. |
-| `/legacy/about`       |             88.8 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column. |
-| `/legacy/blog/[slug]` |             88.4 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column. |
+| `/legacy`             |             87.5 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column. |
+| `/legacy/about`       |             89.4 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column. |
+| `/legacy/blog/[slug]` |             89.0 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column. |
 
 ## 16-turbopack
 
 ### app-router
 
-- Version: `Next.js v16.3.5`
+- Version: `Next.js v16.4.5`
 - Build command: `pnpm exec next build`
 - Verdict: SUPPORTED — use `build-manifest.json.rootMainFiles` as the shared bootstrap and each route's `entryJSFiles` from `server/app/**/_client-reference-manifest.js` for per-route additions.
 - Shared/root representation: Full App Router first-load JS is `build-manifest.json.rootMainFiles ∪ entryJSFiles[currentRoute]`.
@@ -1242,6 +1245,7 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 - `server/next-font-manifest.json`
 - `server/pages-manifest.json`
 - `server/prefetch-hints.json`
+- `server/preview-props.json`
 - `server/server-reference-manifest.js`
 - `server/server-reference-manifest.json`
 - `trace`
@@ -1259,18 +1263,18 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 ```json
 {
   "build-manifest.rootMainFiles": [
-    "static/chunks/3s5pmkd2ir1yc.js",
-    "static/chunks/0bkymafeh5y29.js",
-    "static/chunks/3gzbjf3balqow.js",
-    "static/chunks/turbopack-2eugc5apgy_de.js"
+    "static/chunks/1t8sq563vujq2.js",
+    "static/chunks/2n39nacoym5e9.js",
+    "static/chunks/2vxuf8-zsb2b4.js",
+    "static/chunks/turbopack-2u1d16houkiyo.js"
   ],
   "route": "/blog/[slug]/page",
   "entryJSFiles": {
-    "[project]/app/layout": ["static/chunks/40jnpcxq3aokl.js"],
-    "[project]/node_modules/.../builtin/global-error": ["static/chunks/40jnpcxq3aokl.js"],
+    "[project]/app/layout": ["static/chunks/3u7dsa2co6wc4.js"],
+    "[project]/node_modules/.../builtin/global-error": ["static/chunks/3u7dsa2co6wc4.js"],
     "[project]/app/blog/[slug]/page": [
-      "static/chunks/40jnpcxq3aokl.js",
-      "static/chunks/2i-kqpde7pdef.js"
+      "static/chunks/3u7dsa2co6wc4.js",
+      "static/chunks/2pze4l8uzky-7.js"
     ]
   }
 }
@@ -1280,16 +1284,16 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 
 | Route            | Computed gzip bytes | `next build` printed value | Delta | Explanation                                                            |
 | ---------------- | ------------------: | -------------------------: | ----: | ---------------------------------------------------------------------- |
-| `/`              |            133.9 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column.                              |
-| `/_global-error` |            133.1 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column.                              |
-| `/_not-found`    |            133.6 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column.                              |
-| `/about`         |            135.4 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column.                              |
+| `/`              |            135.4 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column.                              |
+| `/_global-error` |            134.6 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column.                              |
+| `/_not-found`    |            135.2 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column.                              |
+| `/about`         |            136.9 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column.                              |
 | `/api/hello`     |                 0 B |                        N/A |   N/A | Empty client-manifest entry; Next 16 prints no `First Load JS` column. |
-| `/blog/[slug]`   |            135.2 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column.                              |
+| `/blog/[slug]`   |            136.7 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column.                              |
 
 ### pages-router
 
-- Version: `Next.js v16.3.5`
+- Version: `Next.js v16.4.5`
 - Build command: `pnpm exec next build`
 - Verdict: SUPPORTED — `build-manifest.json.pages` still carries the per-route Pages Router entries. Next 16 no longer prints a `First Load JS` column, but the route arrays themselves are still reliable.
 - Shared/root representation: `build-manifest.json.pages[route]` omits `build-manifest.json.pages['/_app']`, but `next build` always counts those files. Compute each Pages Router route as `pages['/_app'] ∪ pages[route]`; the `/_app` files are the shared Pages Router core.
@@ -1324,6 +1328,7 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 - `server/next-font-manifest.js`
 - `server/next-font-manifest.json`
 - `server/pages-manifest.json`
+- `server/preview-props.json`
 - `server/server-reference-manifest.js`
 - `server/server-reference-manifest.json`
 - `trace`
@@ -1342,25 +1347,13 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 {
   "pages": {
     "/_app": [
-      "static/chunks/0n9xg-ov62bj8.js",
-      "static/chunks/21z7_s-9x_wfn.js",
-      "static/chunks/turbopack-17hbxysvgok4y.js"
+      "static/chunks/2xfzmfdt8xpi7.js",
+      "static/chunks/1a2alye4-y9ji.js",
+      "static/chunks/turbopack-2u1d16houkiyo.js"
     ],
-    "/": [
-      "static/chunks/1gsjxec3apija.js",
-      "static/chunks/21z7_s-9x_wfn.js",
-      "static/chunks/turbopack-20yi3sfkhuub5.js"
-    ],
-    "/about": [
-      "static/chunks/21tps7_8--n7y.js",
-      "static/chunks/21z7_s-9x_wfn.js",
-      "static/chunks/turbopack-1_n72z2u9cle2.js"
-    ],
-    "/blog/[slug]": [
-      "static/chunks/0asdqsumq94hd.js",
-      "static/chunks/21z7_s-9x_wfn.js",
-      "static/chunks/turbopack-2a11r_2tzgb52.js"
-    ]
+    "/": ["static/chunks/3q886bo9qhd77.js", "static/chunks/turbopack-2u1d16houkiyo.js"],
+    "/about": ["static/chunks/07fe-itv7pkk_.js", "static/chunks/turbopack-2u1d16houkiyo.js"],
+    "/blog/[slug]": ["static/chunks/313ea48kp8td4.js", "static/chunks/turbopack-2u1d16houkiyo.js"]
   }
 }
 ```
@@ -1369,13 +1362,13 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 
 | Route          | Computed gzip bytes | `next build` printed value | Delta | Explanation                               |
 | -------------- | ------------------: | -------------------------: | ----: | ----------------------------------------- |
-| `/`            |             96.8 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column. |
-| `/about`       |             98.8 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column. |
-| `/blog/[slug]` |             98.6 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column. |
+| `/`            |             88.6 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column. |
+| `/about`       |             90.3 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column. |
+| `/blog/[slug]` |             90.2 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column. |
 
 ### mixed
 
-- Version: `Next.js v16.3.5`
+- Version: `Next.js v16.4.5`
 - Build command: `pnpm exec next build`
 - Verdict: SUPPORTED — Pages Router routes come from `build-manifest.json.pages['/_app'] ∪ build-manifest.json.pages[route]`, and App Router routes come from `build-manifest.json.rootMainFiles ∪ entryJSFiles`.
 - Shared/root representation: Pages Router and App Router expose different shared cores here; keep them separate instead of merging them.
@@ -1412,6 +1405,7 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 - `server/next-font-manifest.json`
 - `server/pages-manifest.json`
 - `server/prefetch-hints.json`
+- `server/preview-props.json`
 - `server/server-reference-manifest.js`
 - `server/server-reference-manifest.json`
 - `trace`
@@ -1429,31 +1423,22 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 ```json
 {
   "rootMainFiles": [
-    "static/chunks/3s5pmkd2ir1yc.js",
-    "static/chunks/0bkymafeh5y29.js",
-    "static/chunks/3gzbjf3balqow.js",
-    "static/chunks/turbopack-2eugc5apgy_de.js"
+    "static/chunks/1t8sq563vujq2.js",
+    "static/chunks/352l7n3_z55_s.js",
+    "static/chunks/3u0anu0j92k65.js",
+    "static/chunks/turbopack-2u1d16houkiyo.js"
   ],
   "pages": {
     "/_app": [
-      "static/chunks/1u7d3g9ui9k6u.js",
-      "static/chunks/2swr6i7d99d2a.js",
-      "static/chunks/turbopack-2uew38sfeoq-_.js"
+      "static/chunks/1174uycr04jp_.js",
+      "static/chunks/2warudv3wznj6.js",
+      "static/chunks/turbopack-2u1d16houkiyo.js"
     ],
-    "/legacy": [
-      "static/chunks/2o7ne259rpay0.js",
-      "static/chunks/2swr6i7d99d2a.js",
-      "static/chunks/turbopack-0kf93j3exu-em.js"
-    ],
-    "/legacy/about": [
-      "static/chunks/3g2uu3obvkrxr.js",
-      "static/chunks/2swr6i7d99d2a.js",
-      "static/chunks/turbopack-1urz3umtsnv4k.js"
-    ],
+    "/legacy": ["static/chunks/3dq7a4exc_ptq.js", "static/chunks/turbopack-2u1d16houkiyo.js"],
+    "/legacy/about": ["static/chunks/0gj--nxmdk9mb.js", "static/chunks/turbopack-2u1d16houkiyo.js"],
     "/legacy/blog/[slug]": [
-      "static/chunks/3ny-k9syxy-bl.js",
-      "static/chunks/2swr6i7d99d2a.js",
-      "static/chunks/turbopack-431mxpgg7fdof.js"
+      "static/chunks/408ol2amvvz0p.js",
+      "static/chunks/turbopack-2u1d16houkiyo.js"
     ]
   }
 }
@@ -1464,18 +1449,18 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 ```json
 {
   "build-manifest.rootMainFiles": [
-    "static/chunks/3s5pmkd2ir1yc.js",
-    "static/chunks/0bkymafeh5y29.js",
-    "static/chunks/3gzbjf3balqow.js",
-    "static/chunks/turbopack-2eugc5apgy_de.js"
+    "static/chunks/1t8sq563vujq2.js",
+    "static/chunks/352l7n3_z55_s.js",
+    "static/chunks/3u0anu0j92k65.js",
+    "static/chunks/turbopack-2u1d16houkiyo.js"
   ],
   "route": "/products/[slug]/page",
   "entryJSFiles": {
-    "[project]/app/layout": ["static/chunks/0lpk04d97l_im.js"],
-    "[project]/node_modules/.../builtin/global-error": ["static/chunks/0lpk04d97l_im.js"],
+    "[project]/app/layout": ["static/chunks/0dxe2b8hzmag6.js"],
+    "[project]/node_modules/.../builtin/global-error": ["static/chunks/0dxe2b8hzmag6.js"],
     "[project]/app/products/[slug]/page": [
-      "static/chunks/0lpk04d97l_im.js",
-      "static/chunks/00v2okdo1-jt-.js"
+      "static/chunks/0dxe2b8hzmag6.js",
+      "static/chunks/08w3h1-k2skcw.js"
     ]
   }
 }
@@ -1485,15 +1470,15 @@ The root entries (`/global-error` 337 B, `/layout` 306 B, `/not-found` 290 B gzi
 
 | Route                 | Computed gzip bytes | `next build` printed value | Delta | Explanation                                                            |
 | --------------------- | ------------------: | -------------------------: | ----: | ---------------------------------------------------------------------- |
-| `/legacy`             |             96.7 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column.                              |
-| `/legacy/about`       |             99.0 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column.                              |
-| `/legacy/blog/[slug]` |             98.5 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column.                              |
-| `/`                   |            133.6 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column.                              |
-| `/_global-error`      |            133.1 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column.                              |
-| `/_not-found`         |            133.6 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column.                              |
-| `/about`              |            135.6 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column.                              |
+| `/legacy`             |             88.5 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column.                              |
+| `/legacy/about`       |             90.5 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column.                              |
+| `/legacy/blog/[slug]` |             90.0 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column.                              |
+| `/`                   |            135.1 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column.                              |
+| `/_global-error`      |            134.6 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column.                              |
+| `/_not-found`         |            135.1 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column.                              |
+| `/about`              |            137.1 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column.                              |
 | `/api/hello`          |                 0 B |                        N/A |   N/A | Empty client-manifest entry; Next 16 prints no `First Load JS` column. |
-| `/products/[slug]`    |            135.3 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column.                              |
+| `/products/[slug]`    |            136.8 kB |                        N/A |   N/A | Next 16 prints no `First Load JS` column.                              |
 
 ## External research
 
