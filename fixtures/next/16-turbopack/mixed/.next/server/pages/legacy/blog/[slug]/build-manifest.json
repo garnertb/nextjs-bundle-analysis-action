@@ -6,13 +6,14 @@
   "rootMainFiles": [],
   "pages": {
     "/legacy/blog/[slug]": [
-      "static/chunks/3ny-k9syxy-bl.js",
-      "static/chunks/2swr6i7d99d2a.js",
-      "static/chunks/turbopack-431mxpgg7fdof.js"
+      "static/chunks/408ol2amvvz0p.js",
+      "static/chunks/turbopack-2u1d16houkiyo.js"
     ]
   },
   "ampFirstPages": [],
   "rootMainFilesTree": {},
-  "pagesChunkGroupBootstrapParams": {},
+  "pagesChunkGroupBootstrapParams": {
+    "/legacy/blog/[slug]": {"otherChunks":["static/chunks/408ol2amvvz0p.js"],"runtimeModuleIds":[98900,16329]}
+  },
   "chunkLoadingGlobal": "TURBOPACK"
 }

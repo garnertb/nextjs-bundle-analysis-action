@@ -19,20 +19,20 @@ const scratchRoot = process.env.NBA_FIXTURE_SCRATCH || path.join(repoRoot, '.fix
 const summaryPath = path.join(scratchRoot, 'summary.json');
 
 const combos = [
-  { id: '15-webpack', nextVersion: '15.5.25', bundler: 'webpack', buildArgs: ['next', 'build'] },
+  { id: '15-webpack', nextVersion: '15.5.28', bundler: 'webpack', buildArgs: ['next', 'build'] },
   {
     id: '15-turbopack',
-    nextVersion: '15.5.25',
+    nextVersion: '15.5.28',
     bundler: 'turbopack',
     buildArgs: ['next', 'build', '--turbopack'],
   },
   {
     id: '16-webpack',
-    nextVersion: '16.3.5',
+    nextVersion: '16.4.5',
     bundler: 'webpack',
     buildArgs: ['next', 'build', '--webpack'],
   },
-  { id: '16-turbopack', nextVersion: '16.3.5', bundler: 'turbopack', buildArgs: ['next', 'build'] },
+  { id: '16-turbopack', nextVersion: '16.4.5', bundler: 'turbopack', buildArgs: ['next', 'build'] },
 ];
 
 const apps = [
