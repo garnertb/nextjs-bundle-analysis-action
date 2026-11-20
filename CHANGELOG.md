@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.2](https://github.com/garnertb/nextjs-bundle-analysis-action/compare/nextjs-bundle-analysis-action-v1.1.1...nextjs-bundle-analysis-action-v1.1.2) (2026-11-20)
+
+
+### Bug Fixes
+
+* **deps:** bump undici, fast-xml-parser, and @actions/artifact ([#40](https://github.com/garnertb/nextjs-bundle-analysis-action/issues/40)) ([f6ad57e](https://github.com/garnertb/nextjs-bundle-analysis-action/commit/f6ad57e02b955993a87434359d436bd1218ae30f))
+
 ## [1.1.1](https://github.com/garnertb/nextjs-bundle-analysis-action/compare/nextjs-bundle-analysis-action-v1.1.0...nextjs-bundle-analysis-action-v1.1.1) (2026-11-02)
 
 
